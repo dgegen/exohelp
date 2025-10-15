@@ -228,16 +228,12 @@ class ConfirmedExoplanetLoader:
         if most_recent_file_path and use_cache:
             df = pd.read_csv(most_recent_file_path)
         else:
-            df = self.download_confirmed_exoplanets_dataframe(
-                reduced_columns=reduced_columns
-            )
+            df = self.download_confirmed_exoplanets_dataframe(reduced_columns=reduced_columns)
 
         return df
 
     def download_confirmed_exoplanets_dataframe(self, reduced_columns=True):
-        content = self.download_confirmed_exoplanets_csv(
-            reduced_columns=reduced_columns
-        )
+        content = self.download_confirmed_exoplanets_csv(reduced_columns=reduced_columns)
         df = pd.read_csv(io.StringIO(content))
         if reduced_columns:
             df = df.loc[:, self.DEFAULT_COLUMNS]
@@ -277,9 +273,7 @@ class ConfirmedExoplanetLoader:
 
         output_dir = self.output_dir
 
-        files = [
-            item for item in os.listdir(output_dir) if "confirmed_exoplanets" in item
-        ]
+        files = [item for item in os.listdir(output_dir) if "confirmed_exoplanets" in item]
         files.sort()
 
         if len(files) == 0:
@@ -347,11 +341,7 @@ class SolarSystemPlanetLoader:
     def get_path(self):
         output_dir = self.output_dir
 
-        files = [
-            item
-            for item in os.listdir(output_dir)
-            if item == "solar_system_planets.csv"
-        ]
+        files = [item for item in os.listdir(output_dir) if item == "solar_system_planets.csv"]
         files.sort()
 
         if len(files) == 0:
@@ -360,9 +350,7 @@ class SolarSystemPlanetLoader:
         return os.path.join(output_dir, files[-1])
 
     def save_to_csv(self, df):
-        file_path = os.path.join(
-            ConfirmedExoplanetLoader.OUTPUTS_DIR, "solar_system_planets.csv"
-        )
+        file_path = os.path.join(ConfirmedExoplanetLoader.OUTPUTS_DIR, "solar_system_planets.csv")
 
         df.to_csv(file_path, index=True)
         return file_path

@@ -1,48 +1,53 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm", "wheel"]
 build-backend = "setuptools.build_meta"
+requires = ["setuptools", "setuptools-scm", "wheel"]
 
 [project]
-name = "exohelp"
 authors = [
-    {name = "David Degen", email = "ddegen@ethz.ch"},
+  {email = "ddegen@ethz.ch", name = "David Degen"}
 ]
-description = "A collection of tools for exoplanetary and stellar astrophysics."
-readme = "README.md"
-requires-python = ">=3.10"
-keywords = ["astronomy", "astrophysics", "exoplanets", "stars", "planets"]
-license = {text = "MIT"}
 classifiers = [
-    "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3"
 ]
 dependencies = [
-    "astropy",
-    "pandas",
-    "matplotlib",
+  "astropy",
+  "pandas",
+  "matplotlib"
 ]
+description = "A collection of tools for exoplanetary and stellar astrophysics."
+keywords = ["astronomy", "astrophysics", "exoplanets", "stars", "planets"]
+license = {text = "MIT"}
+name = "exohelp"
+readme = "README.md"
+requires-python = ">=3.11"
 version = '0.1.0'
-
 
 [project.optional-dependencies]
 dev = [
-    "ruff",
+  "ruff",
+  "pre-commit"
 ]
 test = [
-    "pytest",
+  "pytest"
 ]
 
 [project.urls]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
 [tool.ruff]
 line-length = 100
-lint.extend-select = [
-    "C4",
-    "SIM",
-    "NPY",
-    ""PD",
-    "N",
-    "RUF",
+
+[tool.ruff.lint]
+extend-ignore = [
+  "PD901"
 ]
+extend-select = [
+  "C4",
+  "SIM",
+  "NPY",
+  "PD",
+  "N",
+  "RUF"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
