@@ -19,7 +19,7 @@ keywords = ["astronomy", "astrophysics", "exoplanets", "stars", "planets"]
 license = {text = "MIT"}
 name = "exohelp"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 version = '0.1.0'
 
 [project.optional-dependencies]
