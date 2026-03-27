@@ -1,6 +1,12 @@
 repos:
   - repo: local
     hooks:
+      - id: uv-lock
+        name: uv lock
+        entry: uv lock
+        language: system
+        files: ^pyproject\.toml$
+        pass_filenames: false
       - id: sort_pyproject
         name: sort_pyproject
         entry: toml-sort -i --sort-table-keys --sort-inline-tables
