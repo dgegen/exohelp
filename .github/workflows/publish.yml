@@ -22,6 +22,10 @@ jobs:
       - name: Test with pytest
         run: uv run pytest tests
 
+      - name: Update CITATION.cff version
+        run: |
+          sed -i "s/^version: .*/version: ${GITHUB_REF_NAME#v}/" CITATION.cff
+
       - name: Build package
         run: uv build
 

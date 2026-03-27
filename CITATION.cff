@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+title: exohelp
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+authors:
+  - family-names: Degen
+    given-names: David
+    email: ddegen@ethz.ch
+    orcid: "https://orcid.org/0009-0008-1068-481X"
+repository-code: "https://github.com/dgegen/exohelp"
+license: MIT
+version: 0.1.1
+doi: "10.5281/zenodo.19255214"
