@@ -1,0 +1,30 @@
+name: Format and test
+
+on: [push, pull_request]
+
+jobs:
+  run-test:
+    strategy:
+      matrix:
+        python-version:
+          - "3.11"
+        os: [ubuntu-latest]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv and set up Python version
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Sync dependencies
+        run: uv sync --locked --extra dev --extra test
+
+      - name: Checks with pre-commit
+        uses: pre-commit/action@v3.0.1
+
+      - name: Test with pytest
+        run: uv run pytest tests

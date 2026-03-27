@@ -1,37 +1,47 @@
 [build-system]
-build-backend = "setuptools.build_meta"
-requires = ["setuptools", "setuptools-scm", "wheel"]
+build-backend = "uv_build"
+requires = ["uv_build>=0.11.2,<0.12"]
+
+[dependency-groups]
+archive = [
+  "httpx>=0.28.1",
+  "pandas>=2.3.3"
+]
+dev = [
+  {include-group = "test"},
+  "pre-commit>=4.5.1",
+  "ruff>=0.14.11"
+]
+test = [
+  "pandas>=2.0",
+  "pytest>=9.0.2"
+]
 
 [project]
 authors = [
   {email = "ddegen@ethz.ch", name = "David Degen"}
 ]
 classifiers = [
-  "Programming Language :: Python :: 3"
+  "Programming Language :: Python :: 3",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Astronomy"
 ]
 dependencies = [
-  "astropy",
-  "pandas",
-  "matplotlib"
+  "astropy>=7.2.0",
+  "numpy>=2.4.1"
 ]
 description = "A collection of tools for exoplanetary and stellar astrophysics."
 keywords = ["astronomy", "astrophysics", "exoplanets", "stars", "planets"]
 license = {text = "MIT"}
 name = "exohelp"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 version = '0.1.1'
 
-[project.optional-dependencies]
-dev = [
-  "ruff",
-  "pre-commit"
-]
-test = [
-  "pytest"
-]
-
 [project.urls]
+"Bug Tracker" = "https://github.com/dgegen/exohelp/issues"
+"Homepage" = "https://github.com/dgegen/exohelp"
+"Source" = "https://github.com/dgegen/exohelp"
 
 [tool.ruff]
 line-length = 100
@@ -48,6 +58,3 @@ extend-select = [
   "N",
   "RUF"
 ]
-
-[tool.setuptools.packages.find]
-where = ["src"]
