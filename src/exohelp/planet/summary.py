@@ -6,7 +6,12 @@ from astropy.table import QTable
 from ..body import bulk_density, surface_gravity
 from ..kepler import keplers_third_law
 from ..type import QuantityLike
-from .properties import equilibrium_temperature, hill_sphere_radius, insolation_flux
+from .properties import (
+    equilibrium_temperature,
+    hill_sphere_radius,
+    insolation_flux,
+    periastron_distance,
+)
 from .rv import planet_mass_from_rv
 from .rv import rv_semi_amplitude as _rv_semi_amplitude
 from .spectroscopy import (
@@ -138,6 +143,13 @@ def derived_planet_quantities(
             "teq",
             _teq.to("K"),
             f"Equilibrium temperature T_eq = T★ √(R★/2a) (1-A)^(1/4), A={bond_albedo}",
+        )
+
+    if eccentricity is not None:
+        _add(
+            "periastron",
+            periastron_distance(a, eccentricity).to("AU"),
+            "Periastron distance q = a(1-e)",
         )
 
     # --- planet mass (from RV or explicit) ---

@@ -8,7 +8,38 @@ __all__ = [
     "equilibrium_temperature",
     "hill_sphere_radius",
     "insolation_flux",
+    "periapsis_distance",
+    "periastron_distance",
 ]
+
+
+def periastron_distance(
+    semi_major_axis: QuantityLike, eccentricity: float | np.ndarray = 0.0
+) -> u.Quantity:
+    """Compute the periastron (periapsis) distance q = a (1 - e).
+
+    Parameters
+    ----------
+    semi_major_axis : QuantityLike
+        Orbital semi-major axis. Assumed to be in AU if no unit is given.
+    eccentricity : float or array-like
+        Orbital eccentricity. Default is 0 (circular).
+
+    Returns
+    -------
+    q : Quantity
+        Periastron distance in AU.
+    """
+    semi_major_axis = (
+        semi_major_axis
+        if isinstance(semi_major_axis, u.Quantity)
+        else u.Quantity(semi_major_axis, "AU")
+    )
+    return (semi_major_axis * (1 - eccentricity)).to("AU")
+
+
+# alias spelling
+periapsis_distance = periastron_distance
 
 
 def insolation_flux(
