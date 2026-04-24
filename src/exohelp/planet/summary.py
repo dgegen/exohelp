@@ -18,9 +18,11 @@ from .rv import planet_mass_from_rv
 from .rv import rv_semi_amplitude as _rv_semi_amplitude
 from .spectroscopy import (
     emission_spectroscopy_metric,
-    scale_height as _scale_height,
     transmission_signal_size,
     transmission_spectroscopy_metric,
+)
+from .spectroscopy import (
+    scale_height as _scale_height,
 )
 from .transit import orbital_inclination, transit_quantities
 
@@ -44,7 +46,7 @@ DERIVED_LATEX_PATTERNS = [
     (r"^transit_duration_ingress$", r"\tau_{\mathrm{ing}, planet_index}"),
     (r"^transit_probability$", r"P_{\mathrm{tr}, planet_index}"),
     (r"^occultation_probability$", r"P_{\mathrm{occ}, planet_index}"),
-    (r"^transmission_signal_1H$", r"\mathrm{Amp}_{\mathrm{transit}, planet_index}"),
+    (r"^transmission_signal_1H$", r"\Delta D_{1H, planet_index}"),
     (r"^teq$", r"T_{\mathrm{eq}, planet_index}"),
     (r"^teff_star$", r"T_{\mathrm{eff}, \star}"),
     (r"^logg_star$", r"\log g_\star"),
@@ -190,10 +192,11 @@ def derived_planet_quantities(
         new_names = [_column_with_planet_index(name, planet_index) for name in old_names]
         table.rename_columns(old_names, new_names)
 
-    def _add(name: str, value, description: str) -> None:
+    def _add(name: str, value, description: str, **kwargs) -> None:
         column_name = _column_with_planet_index(name, planet_index)
         table[column_name] = np.atleast_1d(value)
         table[column_name].info.description = description  # type: ignore[union-attr]
+        table[column_name].info.meta.update(kwargs)  # type: ignore[union-attr]
 
     # --- insolation flux and equilibrium temperature ---
     _lum = None
@@ -208,6 +211,8 @@ def derived_planet_quantities(
             "insolation",
             insolation_flux(_lum, a),
             "Insolation flux relative to Earth's S/S⊕ = (L★/L⊙)(AU/a)²",
+            short_description="Insolation flux",
+            latex_unit="S_\oplus",
         )
 
     _teq = None
@@ -220,6 +225,7 @@ def derived_planet_quantities(
             "teq",
             _teq.to("K"),
             f"Equilibrium temperature T_eq = T★ √(R★/2a) (1-A)^(1/4), A={bond_albedo}",
+            short_description="Equilibrium temperature",
         )
 
     if np.any(eccentricity > 0):
@@ -227,6 +233,7 @@ def derived_planet_quantities(
             "periastron_distance",
             periastron_distance(a, eccentricity).to("AU"),
             "Periastron distance q = a(1-e)",
+            short_description="Periastron distance",
         )
 
     # --- planet mass (from RV or explicit) ---
@@ -238,33 +245,57 @@ def derived_planet_quantities(
             else u.Quantity(rv_semi_amplitude, "m/s")
         )
         _m_planet = planet_mass_from_rv(_K, period, eccentricity, m_star, incl)
-        _add("rv_semi_amplitude", _K.to("m/s"), "Observed RV semi-amplitude K")
+        _add(
+            "rv_semi_amplitude",
+            _K.to("m/s"),
+            "Observed RV semi-amplitude K",
+            short_description="RV semi-amplitude",
+        )
         _add(
             "m_planet",
             _m_planet.to("M_earth"),
             "Planet mass from RV semi-amplitude (Lovis & Fischer 2010)",
+            short_description="Planet mass",
+            abs="https://ui.adsabs.harvard.edu/abs/2010exop.book...27L/abstract",
         )
     elif m_planet is not None:
         _m_planet = u.Quantity(m_planet, "M_earth")
-        _add("m_planet", _m_planet.to("M_earth"), "Planet mass")
+        _add("m_planet", _m_planet.to("M_earth"), "Planet mass", short_description="Planet mass")
         _K = _rv_semi_amplitude(_m_planet, period, eccentricity, m_star, incl)  # noqa: N806
         _add(
-            "rv_semi_amplitude", _K.to("m/s"), "Predicted RV semi-amplitude (Lovis & Fischer 2010)"
+            "rv_semi_amplitude",
+            _K.to("m/s"),
+            "Predicted RV semi-amplitude (Lovis & Fischer 2010)",
+            short_description="Predicted RV semi-amplitude",
+            abs="https://ui.adsabs.harvard.edu/abs/2010exop.book...27L/abstract",
         )
 
     if _m_planet is not None:
-        _add("bulk_density", bulk_density(_m_planet, r_planet), "Bulk density")
+        _add(
+            "bulk_density",
+            bulk_density(_m_planet, r_planet),
+            "Bulk density",
+            short_description="Bulk density",
+        )
         _g = surface_gravity(_m_planet, r_planet)
-        _add("surface_gravity", _g.to("m/s^2"), "Surface gravity g = G M_p / R_p²")
+        _add(
+            "surface_gravity",
+            _g.to("m/s^2"),
+            "Surface gravity g = G M_p / R_p²",
+            short_description="Surface gravity",
+        )
         _add(
             "log_surface_gravity",
             np.asarray(log_surface_gravity(_m_planet, r_planet)),
             "Log surface gravity log10(g/[cm s^-2])",
+            short_description="Log surface gravity",
         )
         _add(
             "hill_sphere",
             hill_sphere_radius(a, _m_planet, m_star, eccentricity).to("AU"),
             "Hill sphere radius r_H = a(1-e)(m_p/3M★)^(1/3) (Hamilton & Burns 1992)",
+            short_description="Hill sphere radius",
+            doi="https://doi.org/10.1016/0019-1035(92)90005-R",
         )
 
         if _teq is not None:
@@ -273,12 +304,16 @@ def derived_planet_quantities(
                 "scale_height",
                 _H.to("km"),
                 "Atmospheric scale height H = k_B T_eq / (μ m_H g), μ=2.3",
+                short_description="Scale height",
+                abs="https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract",
             )
             _sig = transmission_signal_size(_H, r_planet, r_star)
             _add(
                 "transmission_signal_1H",
                 np.asarray(_sig),
                 "Single-scale-height transmission signal ΔD = 2H R_p / R★² (ppm)",
+                short_description="Transmission signal (1H)",
+                abs="https://doi.org/10.1126/science.1245450",
             )
 
             if j_mag is not None:
@@ -288,6 +323,8 @@ def derived_planet_quantities(
                     "tsm",
                     np.asarray(_tsm),
                     "Transmission Spectroscopy Metric (Kempton et al. 2018)",
+                    short_description="Transmission Spectroscopy Metric",
+                    doi="https://doi.org/10.1088/1538-3873/aadf6f",
                 )
 
             if k_mag is not None:
@@ -297,6 +334,8 @@ def derived_planet_quantities(
                     "esm",
                     np.asarray(_esm),
                     "Emission Spectroscopy Metric at 7.5 µm (Kempton et al. 2018)",
+                    short_description="Emission Spectroscopy Metric",
+                    abs="https://ui.adsabs.harvard.edu/abs/2018PASP..130k4401K/abstract",
                 )
 
     if table.meta is None:
