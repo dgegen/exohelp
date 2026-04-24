@@ -190,8 +190,6 @@ def derived_planet_quantities(
         new_names = [_column_with_planet_index(name, planet_index) for name in old_names]
         table.rename_columns(old_names, new_names)
 
-    _d = u.dimensionless_unscaled
-
     def _add(name: str, value, description: str) -> None:
         column_name = _column_with_planet_index(name, planet_index)
         table[column_name] = np.atleast_1d(value)
@@ -260,7 +258,7 @@ def derived_planet_quantities(
         _add("surface_gravity", _g.to("m/s^2"), "Surface gravity g = G M_p / R_p²")
         _add(
             "log_surface_gravity",
-            np.asarray(log_surface_gravity(_m_planet, r_planet)) * _d,
+            np.asarray(log_surface_gravity(_m_planet, r_planet)),
             "Log surface gravity log10(g/[cm s^-2])",
         )
         _add(
@@ -279,7 +277,7 @@ def derived_planet_quantities(
             _sig = transmission_signal_size(_H, r_planet, r_star)
             _add(
                 "transmission_signal_1H",
-                np.asarray(_sig) * _d,
+                np.asarray(_sig),
                 "Single-scale-height transmission signal ΔD = 2H R_p / R★² (ppm)",
             )
 
@@ -288,7 +286,7 @@ def derived_planet_quantities(
                 _tsm = transmission_spectroscopy_metric(r_planet, _m_planet, _teq, r_star, _jmag)
                 _add(
                     "tsm",
-                    np.asarray(_tsm) * _d,
+                    np.asarray(_tsm),
                     "Transmission Spectroscopy Metric (Kempton et al. 2018)",
                 )
 
@@ -297,7 +295,7 @@ def derived_planet_quantities(
                 _esm = emission_spectroscopy_metric(r_planet, _teq, r_star, _kmag, _teff)
                 _add(
                     "esm",
-                    np.asarray(_esm) * _d,
+                    np.asarray(_esm),
                     "Emission Spectroscopy Metric at 7.5 µm (Kempton et al. 2018)",
                 )
 
