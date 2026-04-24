@@ -647,8 +647,24 @@ def transit_quantities(
         "Geometric occultation probability (R★/a) (1 - e sin ω) / (1 - e²)",
         "Secondary eclipse offset from phase 0.5 (Winn 2010)",
     ]
+    short_descriptions = [
+        "Radius ratio",
+        "Semi-major axis",
+        "Scaled semi-major axis",
+        "Orbital inclination",
+        "Transit depth",
+        "Total transit duration",
+        "Flat-bottom duration",
+        "Ingress duration",
+        "Transit probability",
+        "Occultation probability",
+        "Eclipse timing offset",
+    ]
 
     table = QTable(cols, names=names)
-    for name, desc in zip(names, descriptions):
+    for name, desc, short_desc in zip(names, descriptions, short_descriptions):
         table[name].info.description = desc  # type: ignore[union-attr]
+        if table[name].info.meta is None:  # type: ignore[union-attr]
+            table[name].info.meta = {}  # type: ignore[union-attr]
+        table[name].info.meta["short_description"] = short_desc  # type: ignore[union-attr]
     return table
