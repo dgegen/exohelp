@@ -222,7 +222,7 @@ def derived_planet_quantities(
             f"Equilibrium temperature T_eq = T★ √(R★/2a) (1-A)^(1/4), A={bond_albedo}",
         )
 
-    if eccentricity > 0:
+    if np.any(eccentricity > 0):
         _add(
             "periastron_distance",
             periastron_distance(a, eccentricity).to("AU"),
