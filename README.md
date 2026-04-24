@@ -191,6 +191,22 @@ pytest                        # run tests
 pre-commit run --all-files    # lint and format
 ```
 
+## Citation
+
+If you use `exohelp` in your research, please cite it:
+
+[![DOI](https://zenodo.org/badge/1077113378.svg)](https://doi.org/10.5281/zenodo.19255214)
+
+```bibtex
+@software{exohelp,
+  author  = {Degen, David},
+  title   = {exohelp},
+  doi     = {10.5281/zenodo.19255214},
+  url     = {https://github.com/dgegen/exohelp},
+  license = {MIT},
+}
+```
+
 ## License
 
 MIT
