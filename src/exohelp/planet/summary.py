@@ -196,6 +196,8 @@ def derived_planet_quantities(
         column_name = _column_with_planet_index(name, planet_index)
         table[column_name] = np.atleast_1d(value)
         table[column_name].info.description = description  # type: ignore[union-attr]
+        if table[column_name].info.meta is None:  # type: ignore[union-attr]
+            table[column_name].info.meta = {}  # type: ignore[union-attr]
         table[column_name].info.meta.update(kwargs)  # type: ignore[union-attr]
 
     # --- insolation flux and equilibrium temperature ---
@@ -212,7 +214,7 @@ def derived_planet_quantities(
             insolation_flux(_lum, a),
             "Insolation flux relative to Earth's S/S⊕ = (L★/L⊙)(AU/a)²",
             short_description="Insolation flux",
-            latex_unit="S_\oplus",
+            latex_unit=r"S_\oplus",
         )
 
     _teq = None
