@@ -36,6 +36,12 @@ def calculate_microturbulent_velocity_bruntt2010(teff):
     Returns
     -------
     v_mic : Quantity [km/s]
+
+    Examples
+    --------
+    >>> from exohelp.star.spectroscopy import calculate_microturbulent_velocity_bruntt2010
+    >>> calculate_microturbulent_velocity_bruntt2010(5700)  # at calibration point
+    <Quantity 1.01 km / s>
     """
     delta_t = teff - 5700
     v_mic = 1.01 + (4.56e-4 * delta_t) + (2.75e-7 * delta_t**2)
@@ -56,6 +62,12 @@ def calculate_macroturbulent_velocity_bruntt2010(teff):
     Returns
     -------
     v_mac : Quantity [km/s]
+
+    Examples
+    --------
+    >>> from exohelp.star.spectroscopy import calculate_macroturbulent_velocity_bruntt2010
+    >>> calculate_macroturbulent_velocity_bruntt2010(5700)  # at calibration point
+    <Quantity 2.26 km / s>
     """
     delta_t = teff - 5700
     v_mac = 2.26 + (2.90e-3 * delta_t) + (5.86e-7 * delta_t**2)
@@ -80,6 +92,12 @@ def calculate_v_mac_doyle2014(teff, logg):
     Returns
     -------
     v_mac : Quantity [km/s]
+
+    Examples
+    --------
+    >>> from exohelp.star.spectroscopy import calculate_v_mac_doyle2014
+    >>> calculate_v_mac_doyle2014(5777, 4.44)  # solar values
+    <Quantity 3.21 km / s>
     """
     t_diff = teff - 5777
     v_mac = 3.21 + (2.33e-3 * t_diff) + (2.0e-6 * t_diff**2) - (2.0 * (logg - 4.44))
@@ -104,16 +122,19 @@ def rotation_period_from_vsini(vsini, r_star, inclination_star=90.0):
     rotation_period : Quantity [days]
         Stellar rotation period. If inclination_star is unknown, this is an upper limit.
         Best guess for unknown inclination: <sin i> = pi/4 ≈ 0.785.
-    """
-    if not isinstance(vsini, u.Quantity):
-        vsini = vsini * u.km / u.s
-    if not isinstance(r_star, u.Quantity):
-        r_star = r_star * u.Rsun
-    if not isinstance(inclination_star, u.Quantity):
-        inclination_star = inclination_star * u.deg
 
-    rotation_velocity = vsini / np.sin(inclination_star.to(u.rad))
-    rotation_period = (2 * np.pi * r_star / rotation_velocity).to(u.day)
+    Examples
+    --------
+    >>> from exohelp.star.spectroscopy import rotation_period_from_vsini
+    >>> round(float(rotation_period_from_vsini(2.0, 1.0).value), 1)  # 2 km/s, 1 R_sun, edge-on
+    25.3
+    """
+    vsini = u.Quantity(vsini, "km / s")
+    r_star = u.Quantity(r_star, "R_sun")
+    inclination_star = u.Quantity(inclination_star, "deg")
+
+    rotation_velocity = vsini / np.sin(inclination_star.to("rad").value)
+    rotation_period = (2 * np.pi * r_star / rotation_velocity).to("day")
 
     return rotation_period
 

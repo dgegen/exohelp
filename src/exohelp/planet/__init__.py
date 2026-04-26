@@ -1,4 +1,11 @@
-from .properties import equilibrium_temperature, hill_sphere_radius, insolation_flux
+from .properties import (
+    equilibrium_temperature,
+    equilibrium_temperature_eccentric,
+    hill_sphere_radius,
+    insolation_flux,
+    periastron_distance,
+    periapsis_distance,
+)
 from .summary import derived_planet_quantities
 from .rv import planet_mass_from_rv, rv_semi_amplitude
 from .spectroscopy import (
@@ -18,6 +25,7 @@ from .transit import (
     transit_duration_flat,
     transit_duration_total,
     transit_duration_ingress,
+    transit_quantities,
 )
 
 __all__ = [
@@ -26,12 +34,15 @@ __all__ = [
     # spectroscopy
     "emission_spectroscopy_metric",
     "equilibrium_temperature",
+    "equilibrium_temperature_eccentric",
     "geometric_occultation_probability",
     "geometric_transit_probability",
     "hill_sphere_radius",
     "impact_parameter",
     "insolation_flux",
     "orbital_inclination",
+    "periapsis_distance",
+    "periastron_distance",
     "planet_mass_from_rv",
     "rv_semi_amplitude",
     "scale_height",
@@ -40,6 +51,7 @@ __all__ = [
     "transit_duration_flat",
     "transit_duration_ingress",
     "transit_duration_total",
+    "transit_quantities",
     "transmission_signal_size",
     "transmission_spectroscopy_metric",
 ]

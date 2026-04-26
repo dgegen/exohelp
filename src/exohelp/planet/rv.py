@@ -12,7 +12,7 @@ _PRE_FACTOR = ((2 * np.pi * const.G) ** (-1 / 3)).to("day(2/3) M_sun(1/3) / R_su
 def planet_mass_from_rv(
     rv_semi_amplitude: QuantityLike,
     period: QuantityLike,
-    eccentricity: float = 0.0,
+    eccentricity: QuantityLike = 0.0,
     m_star: QuantityLike = 1.0,
     inclination: QuantityLike = 90.0,
     n_iterations: int = 5,
@@ -29,7 +29,7 @@ def planet_mass_from_rv(
         RV semi-amplitude K. Assumed to be in m/s if no unit is given.
     period : QuantityLike
         Orbital period. Assumed to be in days if no unit is given.
-    eccentricity : float
+    eccentricity : QuantityLike
         Orbital eccentricity. Default is 0.
     m_star : QuantityLike
         Stellar mass. Assumed to be in Solar masses if no unit is given.
@@ -102,7 +102,7 @@ def planet_mass_from_rv(
 def rv_semi_amplitude(
     m_planet: QuantityLike,
     period: QuantityLike,
-    eccentricity: float = 0.0,
+    eccentricity: QuantityLike = 0.0,
     m_star: QuantityLike = 1.0,
     inclination: QuantityLike = 90.0,
 ) -> u.Quantity:
@@ -116,7 +116,7 @@ def rv_semi_amplitude(
         Planet mass. Assumed to be in Earth masses if no unit is given.
     period : QuantityLike
         Orbital period. Assumed to be in days if no unit is given.
-    eccentricity : float
+    eccentricity : QuantityLike
         Orbital eccentricity. Default is 0.
     m_star : QuantityLike
         Stellar mass. Assumed to be in Solar masses if no unit is given.

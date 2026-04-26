@@ -1,6 +1,7 @@
 import astropy.units as u
 import numpy as np
 from astropy.table import QTable
+from astropy.units.cds import ppm  # type: ignore[import]
 
 from ..kepler import keplers_third_law
 from ..type import QuantityLike
@@ -51,6 +52,12 @@ def impact_parameter(
     ----------
     Winn, J. N. (2010), in Exoplanets, edited by S. Seager. Published by University of Arizona Press, Tucson, AZ, 2010, 526 pp. ISBN 978-0-8165-2945-2., p.55-77
     https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract
+
+    Examples
+    --------
+    >>> from exohelp.planet import impact_parameter
+    >>> float(impact_parameter(1.0, cos_inclination=0.0))  # edge-on orbit
+    0.0
     """
     semi_major_axis = u.Quantity(semi_major_axis, "AU")
     r_star = u.Quantity(r_star, "R_sun")
@@ -92,6 +99,12 @@ def orbital_inclination(
     ----------
     Winn, J. N. (2010), in Exoplanets, edited by S. Seager. Published by University of Arizona Press, Tucson, AZ, 2010, 526 pp. ISBN 978-0-8165-2945-2., p.55-77
     https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract
+
+    Examples
+    --------
+    >>> from exohelp.planet import orbital_inclination
+    >>> orbital_inclination(1.0, b=0.0)  # edge-on
+    <Quantity 90. deg>
     """
     semi_major_axis = u.Quantity(semi_major_axis, "AU")
     r_star = u.Quantity(r_star, "R_sun")
@@ -171,7 +184,7 @@ def transit_duration_total(
 
     Examples
     --------
-    >>> transit_duration_total(period=365.25).round(1).to('hour').value
+    >>> float(transit_duration_total(period=365.25).round(1).to('hour').value)
     13.1
     """
     period = u.Quantity(period, "day")
@@ -234,6 +247,16 @@ def transit_duration_flat(
     ----------
     Winn, J. N. (2010), in Exoplanets, edited by S. Seager. Published by University of Arizona Press, Tucson, AZ, 2010, 526 pp. ISBN 978-0-8165-2945-2., p.55-77
     https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract
+
+    Examples
+    --------
+    >>> from exohelp.planet import transit_duration_flat, transit_duration_total
+    >>> t14 = transit_duration_total(365.25)
+    >>> t23 = transit_duration_flat(365.25)
+    >>> bool(t23 < t14)  # flat portion is shorter than total
+    True
+    >>> float(transit_duration_flat(365.25, b=1.0).value)  # grazing transit has no flat bottom
+    0.0
     """
     period = u.Quantity(period, "day")
     r_planet = u.Quantity(r_planet, "R_earth")
@@ -294,13 +317,22 @@ def transit_duration_ingress(
     ----------
     Winn, J. N. (2010), in Exoplanets, edited by S. Seager. Published by University of Arizona Press, Tucson, AZ, 2010, 526 pp. ISBN 978-0-8165-2945-2., p.55-77
     https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract
+
+    Examples
+    --------
+    >>> from exohelp.planet import transit_duration_ingress, transit_duration_total, transit_duration_flat
+    >>> t12 = transit_duration_ingress(365.25)
+    >>> t14 = transit_duration_total(365.25)
+    >>> t23 = transit_duration_flat(365.25)
+    >>> bool(abs(t12 - (t14 - t23) / 2).value < 1e-10)  # T₁₂ = (T₁₄ - T₂₃) / 2
+    True
     """
     t_total = transit_duration_total(period, r_planet, r_star, m_star, b, eccentricity, omega)
     t_flat = transit_duration_flat(period, r_planet, r_star, m_star, b, eccentricity, omega)
     return (t_total - t_flat) / 2.0  # type: ignore[return-value]
 
 
-def transit_depth(radius_ratio: float | np.ndarray, b: float | np.ndarray = 0.0) -> np.ndarray:
+def transit_depth(radius_ratio: float | np.ndarray, b: float | np.ndarray = 0.0) -> u.Quantity:
     """Compute the transit depth (fractional flux loss) as a function of impact parameter.
 
     Handles full, grazing, and no-transit geometries analytically.
@@ -316,8 +348,8 @@ def transit_depth(radius_ratio: float | np.ndarray, b: float | np.ndarray = 0.0)
 
     Returns
     -------
-    depth : ndarray
-        Fractional flux loss (dimensionless, between 0 and 1).
+    depth : Quantity
+        Fractional flux loss at mid-transit, in parts per million (ppm).
 
     References
     ----------
@@ -326,10 +358,17 @@ def transit_depth(radius_ratio: float | np.ndarray, b: float | np.ndarray = 0.0)
 
     Seager, S. & Mallén-Ornelas, G. (2003), ApJ, 585, 1038.
     https://doi.org/10.1086/346105
+
+    Examples
+    --------
+    >>> from exohelp.planet import transit_depth
+    >>> transit_depth(0.1)  # k² = 0.01 = 10 000 ppm for a full transit
+    <Quantity 10000. ppm>
+    >>> transit_depth(0.1, b=1.1)  # no transit (b > 1 + k)
+    <Quantity 0. ppm>
     """
     k = np.asarray(radius_ratio, dtype=float)
     b = np.asarray(b, dtype=float)
-    scalar = k.ndim == 0 and b.ndim == 0
 
     k, b = np.broadcast_arrays(k, b)
     depth = np.zeros_like(k)
@@ -345,8 +384,9 @@ def transit_depth(radius_ratio: float | np.ndarray, b: float | np.ndarray = 0.0)
     depth[grazing] = (
         1 / np.pi * (kg**2 * k0 + k1 - np.sqrt((4 * bg**2 - (1 + bg**2 - kg**2) ** 2) / 4))
     )
+    depth = depth * 1e6 * ppm
 
-    return depth.item() if scalar else depth
+    return depth
 
 
 def geometric_transit_probability(
@@ -387,6 +427,12 @@ def geometric_transit_probability(
     ----------
     Winn, J. N. (2010), in Exoplanets, edited by S. Seager. Published by University of Arizona Press, Tucson, AZ, 2010, 526 pp. ISBN 978-0-8165-2945-2., p.55-77
     https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract
+
+    Examples
+    --------
+    >>> from exohelp.planet import geometric_transit_probability
+    >>> round(float(geometric_transit_probability(365.25)), 4)  # Earth: R_sun / 1 AU ≈ 0.0046
+    0.0047
     """
     period = u.Quantity(period, "day")
     r_star = u.Quantity(r_star, "R_sun")
@@ -441,6 +487,14 @@ def geometric_occultation_probability(
     ----------
     Winn, J. N. (2010), in Exoplanets, edited by S. Seager. Published by University of Arizona Press, Tucson, AZ, 2010, 526 pp. ISBN 978-0-8165-2945-2., p.55-77
     https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract
+
+    Examples
+    --------
+    >>> from exohelp.planet import geometric_occultation_probability, geometric_transit_probability
+    >>> p_tr = geometric_transit_probability(365.25)
+    >>> p_occ = geometric_occultation_probability(365.25)
+    >>> bool(p_tr == p_occ)  # equal for circular orbits
+    True
     """
     period = u.Quantity(period, "day")
     r_star = u.Quantity(r_star, "R_sun")
@@ -480,6 +534,12 @@ def a_over_r_star(
     ----------
     Winn, J. N. (2010), in Exoplanets, edited by S. Seager. Published by University of Arizona Press, Tucson, AZ, 2010, 526 pp. ISBN 978-0-8165-2945-2., p.55-77
     https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract
+
+    Examples
+    --------
+    >>> from exohelp.planet import a_over_r_star
+    >>> round(a_over_r_star(365.25))  # Earth: 1 AU / R_sun ≈ 215
+    215
     """
     period = u.Quantity(period, "day")
     r_star = u.Quantity(r_star, "R_sun")
@@ -521,6 +581,14 @@ def secondary_eclipse_timing_offset(
     ----------
     Winn, J. N. (2010), in Exoplanets, edited by S. Seager. Published by University of Arizona Press, Tucson, AZ, 2010, 526 pp. ISBN 978-0-8165-2945-2., p.55-77
     https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract
+
+    Examples
+    --------
+    >>> from exohelp.planet import secondary_eclipse_timing_offset
+    >>> float(secondary_eclipse_timing_offset(365.25, eccentricity=0.0).value)  # circular: no offset
+    0.0
+    >>> abs(float(secondary_eclipse_timing_offset(365.25, eccentricity=0.5, omega=90.0).value)) < 1e-10
+    True
     """
     period = u.Quantity(period, "day")
     omega_rad = omega.to(u.rad).value if isinstance(omega, u.Quantity) else np.deg2rad(omega)
@@ -575,8 +643,12 @@ def transit_quantities(
 
     Examples
     --------
-    >>> from exohelp.planet.transit import transit_quantities
-    >>> table = transit_quantities(period=365.25, r_planet=1.0, r_star=1.0, m_star=1.0, b=0.0, eccentricity=0.0, omega=90.0)
+    >>> from exohelp.planet import transit_quantities
+    >>> table = transit_quantities(365.25)
+    >>> table.colnames  # doctest: +NORMALIZE_WHITESPACE
+    ['k', 'a', 'a_over_r_star', 'inclination', 'transit_depth', 'transit_duration_total', 'transit_duration_flat', 'transit_duration_ingress', 'transit_probability', 'occultation_probability', 'eclipse_timing_offset']
+    >>> round(float(table["transit_duration_total"][0].value), 1)  # Earth: ~13.1 h
+    13.1
     """
     period = u.Quantity(period, "day")
     r_planet = u.Quantity(r_planet, "R_earth")
@@ -589,37 +661,32 @@ def transit_quantities(
     _d = u.dimensionless_unscaled
     cols = [
         np.atleast_1d(k) * _d,
-        np.atleast_1d(a.to("AU").value) * u.AU,
+        np.atleast_1d(a.to("AU")),
         np.atleast_1d(a_over_r_star(period, r_star, m_star)) * _d,
-        np.atleast_1d(orbital_inclination(a, r_star, b, eccentricity, omega).to("deg").value)
-        * u.deg,
-        np.atleast_1d(transit_depth(k, b)) * _d,
+        np.atleast_1d(orbital_inclination(a, r_star, b, eccentricity, omega).to("deg")),
+        np.atleast_1d(transit_depth(k, b)),
         np.atleast_1d(
-            transit_duration_total(period, r_planet, r_star, m_star, b, eccentricity, omega)
-            .to("hour")
-            .value
-        )
-        * u.hour,
+            transit_duration_total(period, r_planet, r_star, m_star, b, eccentricity, omega).to(
+                "hour"
+            )
+        ),
         np.atleast_1d(
-            transit_duration_flat(period, r_planet, r_star, m_star, b, eccentricity, omega)
-            .to("hour")
-            .value
-        )
-        * u.hour,
+            transit_duration_flat(period, r_planet, r_star, m_star, b, eccentricity, omega).to(
+                "hour"
+            )
+        ),
         np.atleast_1d(
-            transit_duration_ingress(period, r_planet, r_star, m_star, b, eccentricity, omega)
-            .to("hour")
-            .value
-        )
-        * u.hour,
+            transit_duration_ingress(period, r_planet, r_star, m_star, b, eccentricity, omega).to(
+                "hour"
+            )
+        ),
         np.atleast_1d(geometric_transit_probability(period, r_star, m_star, eccentricity, omega))
         * _d,
         np.atleast_1d(
             geometric_occultation_probability(period, r_star, m_star, eccentricity, omega)
         )
         * _d,
-        np.atleast_1d(secondary_eclipse_timing_offset(period, eccentricity, omega).to("hour").value)
-        * u.hour,
+        np.atleast_1d(secondary_eclipse_timing_offset(period, eccentricity, omega).to("hour")),
     ]
     names = [
         "k",

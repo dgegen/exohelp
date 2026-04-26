@@ -1,4 +1,4 @@
-from . import planet, star
+from . import planet, star, units
 from .body import bulk_density, log_surface_gravity, surface_gravity
 from .kepler import keplers_third_law
 
@@ -9,4 +9,5 @@ __all__ = [
     "planet",
     "star",
     "surface_gravity",
+    "units",
 ]

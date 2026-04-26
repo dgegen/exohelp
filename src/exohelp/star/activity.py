@@ -14,10 +14,9 @@ Sources:
 All functions are vectorized and unit-aware where appropriate.
 """
 
-import numpy as np
 import astropy.units as u
+import numpy as np
 from astropy.table import QTable
-
 
 __all__ = ["sample_rotation_period_and_age"]
 
@@ -45,7 +44,16 @@ def age_mamajek2008(log_rhk, jitter=None):
     Returns
     -------
     age : Quantity [Gyr]
-        Masked outside valid range.
+        NaN outside valid range.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from exohelp.star.activity import age_mamajek2008
+    >>> round(float(age_mamajek2008(-4.5).value), 2)  # moderately active star
+    0.61
+    >>> bool(np.isnan(float(age_mamajek2008(-6.0).value)))  # outside valid range
+    True
     """
 
     log_rhk = np.asarray(log_rhk, dtype=float)
@@ -63,11 +71,11 @@ def age_mamajek2008(log_rhk, jitter=None):
         log_tau[very_active_mask] += jitter[very_active_mask] * very_active_sigma
         log_tau[active_mask] += jitter[active_mask] * active_sigma
 
-    age = (10**log_tau) * u.year
+    age = u.Quantity(10**log_tau, "year")
 
     mask_valid = (log_rhk > -5.1) & (log_rhk < -4.0)
 
-    return np.ma.array(age.to(u.Gyr).value, mask=~mask_valid) * u.Gyr
+    return np.where(mask_valid, age.to("Gyr"), np.nan)
 
 
 def log_rhk_from_age_mamajek2008(age):
@@ -87,8 +95,18 @@ def log_rhk_from_age_mamajek2008(age):
 
     Returns
     -------
-    log_rhk : MaskedArray
-        log10(R'_HK), masked outside valid range.
+    log_rhk : ndarray
+        log10(R'_HK), NaN outside valid range.
+
+    Examples
+    --------
+    >>> import astropy.units as u
+    >>> from exohelp.star.activity import age_mamajek2008, log_rhk_from_age_mamajek2008
+    >>> log_rhk = -4.5
+    >>> age = age_mamajek2008(log_rhk)
+    >>> # round-trip (Eq. 3 and 4 are separate fits)
+    >>> abs(float(log_rhk_from_age_mamajek2008(age)) - log_rhk) < 0.05
+    True
     """
     age = u.Quantity(age).to(u.year).value
     log_tau = np.log10(age)
@@ -97,7 +115,7 @@ def log_rhk_from_age_mamajek2008(age):
 
     log_rhk = 8.94 - 4.849 * log_tau + 0.624 * log_tau**2 - 0.028 * log_tau**3
 
-    return np.ma.array(log_rhk, mask=~valid_mask)
+    return np.where(valid_mask, log_rhk, np.nan)
 
 
 def tau_c_noyes1984(bv):
@@ -105,8 +123,23 @@ def tau_c_noyes1984(bv):
     Local convective turnover time from B-V color.
 
     Reference: Noyes et al. (1984), Eq. (4).
+
+    Parameters
+    ----------
+    bv : array_like
+        B-V color index.
+
+    Returns
+    -------
+    tau_c : Quantity [days]
+
+    Examples
+    --------
+    >>> from exohelp.star.activity import tau_c_noyes1984
+    >>> round(tau_c_noyes1984(0.65).value.item(), 1)  # solar-like B-V
+    12.0
     """
-    bv = np.asarray(bv, dtype=float)
+    bv = np.atleast_1d(np.asarray(bv, dtype=float))
     x = 1.0 - bv
 
     # This polynomial calculates log10(tau_c)
@@ -118,10 +151,10 @@ def tau_c_noyes1984(bv):
     log10_tau_c[mask] = 1.362 - 0.166 * x[mask] + 0.025 * x[mask] ** 2 - 5.323 * x[mask] ** 3
     log10_tau_c[~mask] = 1.362 - 0.14 * x[~mask]
 
-    return (10**log10_tau_c) * u.day
+    return u.Quantity(10**log10_tau_c, "day")
 
 
-def tau_c_mittag2018(bv):
+def tau_c_mittag2018(bv) -> u.Quantity:
     """
     Global convective turnover time from B-V color.
 
@@ -138,15 +171,23 @@ def tau_c_mittag2018(bv):
     Returns
     -------
     tau_c : Quantity [days]
-        Masked where B-V < 0.44.
+        NaN where B-V < 0.44.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from exohelp.star.activity import tau_c_mittag2018
+    >>> round(float(tau_c_mittag2018(0.65).value[0]), 1)  # solar-like B-V
+    35.4
+    >>> bool(np.isnan(float(tau_c_mittag2018(0.3).value[0])))  # below valid range
+    True
     """
-    bv = np.asarray(bv, dtype=float)
+    bv = np.atleast_1d(np.asarray(bv, dtype=float))
 
     log10_tau_c = np.full_like(bv, np.nan)
 
     mask_1 = (bv >= 0.44) & (bv <= 0.71)
     mask_2 = bv > 0.71
-    mask_valid = bv >= 0.44
 
     # Eq. 11
     log10_tau_c[mask_1] = 1.06 + 2.33 * (bv[mask_1] - 0.44)
@@ -159,7 +200,7 @@ def tau_c_mittag2018(bv):
 
     tau_c = 10**log10_tau_c
 
-    return np.ma.array(tau_c, mask=~mask_valid) * u.day
+    return u.Quantity(tau_c, "day")
 
 
 def rotation_period_mittag2018(rhk_plus, bv, slope=0.15):
@@ -184,14 +225,12 @@ def rotation_period_mittag2018(rhk_plus, bv, slope=0.15):
     prot : Quantity [days]
         Estimated rotation period.
     """
-    global_convective_turnover_time = tau_c_mittag2018(bv)
-    tau_c_val = np.ma.getdata(global_convective_turnover_time.to(u.day).value)
-    tau_c_mask = np.ma.getmaskarray(global_convective_turnover_time)
+    tau_c_val = tau_c_mittag2018(bv).to("day").value
 
     f_rhk = -slope * (np.asarray(rhk_plus) * 1e5)
-    log_p = np.log10(tau_c_val) + f_rhk
+    log_p = np.log10(tau_c_val) + f_rhk  # NaN propagates where tau_c is NaN
 
-    return np.ma.array(10**log_p, mask=tau_c_mask) * u.day
+    return u.Quantity(10**log_p, "day")
 
 
 def gyro_age_barnes2010(prot, tau_c):
@@ -204,6 +243,24 @@ def gyro_age_barnes2010(prot, tau_c):
         t_age = (tau/k_c) * ln(P/P_0) + (k_i / (2*tau)) * (P^2 - P_0^2)
 
     Note: Standard constants from Barnes (2010) are used here.
+
+    Parameters
+    ----------
+    prot : Quantity
+        Rotation period (must be convertible to days).
+    tau_c : Quantity
+        Global convective turnover time (must be convertible to days).
+
+    Returns
+    -------
+    age : Quantity [Gyr]
+
+    Examples
+    --------
+    >>> import astropy.units as u
+    >>> from exohelp.star.activity import gyro_age_barnes2010, tau_c_noyes1984
+    >>> round(float(gyro_age_barnes2010(14.4 * u.day, tau_c_noyes1984(0.65)).value[0]), 1)
+    3.9
     """
     p = prot.to(u.day).value
     tau = tau_c.to(u.day).value
@@ -239,23 +296,26 @@ def rotation_period_noyes1984(log_rhk, tau_c):
     Returns
     -------
     prot : Quantity [days]
-        Masked where log_rhk is outside [-5.5, -4.3] or tau_c is masked.
+        NaN where log R'_HK is outside valid range or tau_c is NaN.
+
+    Examples
+    --------
+    >>> from exohelp.star.activity import rotation_period_noyes1984, tau_c_noyes1984
+    >>> round(float(rotation_period_noyes1984(-4.5, tau_c_noyes1984(0.65)).value[0]), 0)
+    9.0
     """
-    log_rhk = np.asarray(log_rhk, dtype=float)
-    tau_c_val = np.ma.getdata(tau_c.to(u.day).value)
-    tau_mask = np.ma.getmaskarray(tau_c)
+    log_rhk = np.atleast_1d(log_rhk)
+    tau_c_days = u.Quantity(tau_c, "day")
 
     mask_valid = (log_rhk < -4.3) & (log_rhk > -5.5)
 
     y = 5 + log_rhk
+    log_prot = 0.324 - 0.400 * y - 0.283 * y**2 - 1.325 * y**3 + np.log10(tau_c_days.value)
 
-    log_prot = 0.324 - 0.400 * y - 0.283 * y**2 - 1.325 * y**3 + np.log10(tau_c_val)
+    prot = u.Quantity((10**log_prot), "day")
+    prot[~mask_valid] = np.nan
 
-    prot = (10**log_prot) * u.day
-
-    combined_mask = (~mask_valid) | tau_mask
-
-    return np.ma.array(prot.value, mask=combined_mask) * u.day
+    return prot
 
 
 def rossby_number_mamajek2008(log_rhk):
@@ -274,17 +334,25 @@ def rossby_number_mamajek2008(log_rhk):
 
     Returns
     -------
-    rossby_number : MaskedArray
-        Masked where log_rhk < -5.0.
+    rossby_number : ndarray
+        NaN where log_rhk < -5.0.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from exohelp.star.activity import rossby_number_mamajek2008
+    >>> round(float(rossby_number_mamajek2008(-4.5)[0]), 3)
+    0.749
+    >>> bool(np.isnan(float(rossby_number_mamajek2008(-5.5)[0])))  # outside valid range
+    True
     """
-    log_rhk = np.asarray(log_rhk, dtype=float)
+    log_rhk = np.atleast_1d(np.asarray(log_rhk, dtype=float))
 
     rossby_number = np.full_like(log_rhk, np.nan)
 
     # Regimes
     mask_very_active = log_rhk > -4.3
     mask_active = (log_rhk >= -5.0) & (log_rhk <= -4.3)
-    mask_valid = log_rhk >= -5.0
 
     # Eq. (5): very active
     rossby_number[mask_very_active] = 0.233 - 0.689 * (log_rhk[mask_very_active] + 4.23)
@@ -292,7 +360,7 @@ def rossby_number_mamajek2008(log_rhk):
     # Eq. (7): active
     rossby_number[mask_active] = 0.808 - 2.966 * (log_rhk[mask_active] + 4.52)
 
-    return np.ma.array(rossby_number, mask=~mask_valid)
+    return rossby_number
 
 
 def rotation_period_mamajek2008(log_rhk, tau_c):
@@ -314,7 +382,13 @@ def rotation_period_mamajek2008(log_rhk, tau_c):
     Returns
     -------
     prot : Quantity [days]
-        Masked where log_rhk < -5.0 or tau_c is masked.
+        NaN where log_rhk < -5.0 or tau_c is NaN.
+
+    Examples
+    --------
+    >>> from exohelp.star.activity import rotation_period_mamajek2008, tau_c_noyes1984
+    >>> round(float(rotation_period_mamajek2008(-4.5, tau_c_noyes1984(0.65)).value[0]), 1)
+    9.0
     """
     if not isinstance(tau_c, u.Quantity):
         raise ValueError("tau_c must be an astropy Quantity with time units.")
@@ -322,16 +396,9 @@ def rotation_period_mamajek2008(log_rhk, tau_c):
     log_rhk = np.asarray(log_rhk, dtype=float)
 
     rossby_number = rossby_number_mamajek2008(log_rhk)
-    ro_val = np.ma.getdata(rossby_number)
-    ro_mask = np.ma.getmaskarray(rossby_number)
+    prot = rossby_number * tau_c.to(u.day).value  # NaN propagates
 
-    tau_c_val = np.ma.getdata(tau_c.to(u.day).value)
-    tau_mask = np.ma.getmaskarray(tau_c)
-
-    prot = ro_val * tau_c_val
-    combined_mask = ro_mask | tau_mask
-
-    return np.ma.array(prot, mask=combined_mask) * u.day
+    return prot * u.day
 
 
 def gyro_age_mamajek2008(prot, bv, a=0.407, b=0.325, c=0.495, n=0.566):
@@ -362,24 +429,32 @@ def gyro_age_mamajek2008(prot, bv, a=0.407, b=0.325, c=0.495, n=0.566):
     Returns
     -------
     age : Quantity [Gyr]
-        Masked where B-V or prot are outside valid range.
+        NaN where B-V or prot are outside valid range.
+
+    Examples
+    --------
+    >>> import astropy.units as u
+    >>> import numpy as np
+    >>> from exohelp.star.activity import gyro_age_mamajek2008
+    >>> prot = u.Quantity(14.4, 'day')
+    >>> round(float(gyro_age_mamajek2008(prot, bv=0.65).value[0]), 1)
+    1.6
     """
-    prot_val = np.ma.getdata(prot.to(u.day).value)
-    prot_mask = np.ma.getmaskarray(prot)
-    bv = np.asarray(bv, dtype=float)
+    prot_val = np.atleast_1d(u.Quantity(prot, "day").value)
+    bv = np.atleast_1d(np.asarray(bv, dtype=float))
 
     a, b, c, n = (np.broadcast_to(x, prot_val.shape).copy() for x in (a, b, c, n))
 
-    mask_valid = (prot_val > 0) & (bv > 0.5) & (bv < 0.9)
+    # NaN in prot_val makes prot_val > 0 False, so NaN entries are excluded automatically.
+    # bv > c guards against (bv - c) < 0, which would produce NaN for non-integer b.
+    mask_valid = (prot_val > 0) & (bv > 0.5) & (bv < 0.9) & (bv > c)
 
     f_bv = a[mask_valid] * (bv[mask_valid] - c[mask_valid]) ** b[mask_valid]
 
     age = np.full_like(prot_val, np.nan)
     age[mask_valid] = 1e-3 * (prot_val[mask_valid] / f_bv) ** (1 / n[mask_valid])
 
-    combined_mask = (~mask_valid) | prot_mask
-
-    return np.ma.array(age, mask=combined_mask) * u.Gyr
+    return u.Quantity(age, "Gyr")
 
 
 def sample_rotation_period_and_age(
@@ -417,11 +492,12 @@ def sample_rotation_period_and_age(
 
     Example
     -------
+    >>> from exohelp.star.activity import sample_rotation_period_and_age
     >>> table = sample_rotation_period_and_age(mag_b=9.941, mag_b_err=0.029, mag_v=9.33, mag_v_err=0.023, log_rhk=-5.04, log_rhk_err=0.09, n_samples=100_000)
     >>> summary = table.to_pandas().describe(percentiles=[0.16, 0.5, 0.84])
     >>> summary.loc['upper_error'] = summary.loc['84%'] - summary.loc['50%']
     >>> summary.loc['lower_error'] = summary.loc['50%'] - summary.loc['16%']
-    >>> summary.loc[:, ['mag_bv', 'prot', 'age_gyro', 'age_chromo']].round(3)
+    >>> summary.loc[:, ['log_rhk', 'prot_mamajek', 'prot_noyes', 'age_mamajek_gyro', 'age_mamajek_chromo']].round(3) # doctest: +SKIP
     """
     rng = np.random.default_rng(seed)
     mag_b_s = rng.normal(mag_b, mag_b_err, n_samples)

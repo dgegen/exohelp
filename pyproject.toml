@@ -28,7 +28,7 @@ classifiers = [
 ]
 dependencies = [
   "astropy>=7.2.0",
-  "numpy>=2.4.1"
+  "numpy>=2.0.0"
 ]
 description = "A collection of tools for exoplanetary and stellar astrophysics."
 keywords = ["astronomy", "astrophysics", "exoplanets", "stars", "planets"]
@@ -36,12 +36,17 @@ license = {text = "MIT"}
 name = "exohelp"
 readme = "README.md"
 requires-python = ">=3.11"
-version = '0.1.3'
+version = '0.1.4'
 
 [project.urls]
 "Bug Tracker" = "https://github.com/dgegen/exohelp/issues"
 "Homepage" = "https://github.com/dgegen/exohelp"
 "Source" = "https://github.com/dgegen/exohelp"
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"
+doctest_optionflags = ["NORMALIZE_WHITESPACE", "ELLIPSIS"]
+testpaths = ["src/exohelp", "tests"]
 
 [tool.ruff]
 line-length = 100

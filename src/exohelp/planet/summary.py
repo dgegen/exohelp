@@ -10,6 +10,7 @@ from ..kepler import keplers_third_law
 from ..type import QuantityLike
 from .properties import (
     equilibrium_temperature,
+    equilibrium_temperature_eccentric,
     hill_sphere_radius,
     insolation_flux,
     periastron_distance,
@@ -18,6 +19,7 @@ from .rv import planet_mass_from_rv
 from .rv import rv_semi_amplitude as _rv_semi_amplitude
 from .spectroscopy import (
     emission_spectroscopy_metric,
+    planet_star_flux_ratio,
     transmission_signal_size,
     transmission_spectroscopy_metric,
 )
@@ -57,6 +59,7 @@ DERIVED_LATEX_PATTERNS = [
     (r"^eclipse_timing_offset$", r"\Delta t_{\mathrm{ecl}, planet_index}"),
     (r"^tsm$", r"\mathrm{TSM}_{planet_index}"),
     (r"^esm$", r"\mathrm{ESM}_{planet_index}"),
+    (r"^planet_star_flux_ratio_mid_ir$", r"(F_{p}/F_{\star})_{\lambda=7.5\mu m, planet_index}"),
 ]
 
 
@@ -210,8 +213,8 @@ def derived_planet_quantities(
     if _lum is not None:
         _add(
             "insolation",
-            insolation_flux(_lum, a),
-            "Insolation flux relative to Earth's S/S⊕ = (L★/L⊙)(AU/a)²",
+            insolation_flux(_lum, a, eccentricity),
+            "Average insolation flux relative to Earth's S/S⊕ = (L★/L⊙)(AU/a)²",
             short_description="Insolation flux",
             latex_unit=r"S_\oplus",
         )
@@ -220,14 +223,43 @@ def derived_planet_quantities(
     if teff_star is not None:
         _teff = u.Quantity(teff_star, "K")
         _teq = equilibrium_temperature(
-            _teff, semi_major_axis=a, r_star=r_star, bond_albedo=bond_albedo
+            _teff,
+            semi_major_axis=a,
+            r_star=r_star,
+            bond_albedo=bond_albedo,
         )
         _add(
             "teq",
             _teq.to("K"),
-            f"Equilibrium temperature T_eq = T★ √(R★/2a) (1-A)^(1/4), A={bond_albedo}",
+            f"Average equilibrium temperature T_eq = T★ √(R★/2a) (1-A)^(1/4), A={bond_albedo}",
             short_description="Equilibrium temperature",
         )
+        if np.any(eccentricity > 0):
+            eccentric_teqs = equilibrium_temperature_eccentric(
+                _teff,
+                semi_major_axis=a,
+                eccentricity=eccentricity,
+                r_star=r_star,
+                bond_albedo=bond_albedo,
+            )
+            _add(
+                "teq_apastron",
+                eccentric_teqs.apastron.to("K"),
+                "Equilibrium temperature at apastron",
+                short_description="Equilibrium temperature at apastron",
+            )
+            _add(
+                "teq_periastron",
+                eccentric_teqs.periastron.to("K"),
+                "Equilibrium temperature at periastron",
+                short_description="Equilibrium temperature at periastron",
+            )
+            _add(
+                "teq_flux_averaged",
+                eccentric_teqs.flux_averaged.to("K"),
+                "Flux-averaged equilibrium temperature",
+                short_description="Flux-averaged equilibrium temperature",
+            )
 
     if np.any(eccentricity > 0):
         _add(
@@ -303,7 +335,7 @@ def derived_planet_quantities(
             _H = _scale_height(_teq, _g)  # noqa: N806
             _add(
                 "scale_height",
-                _H.to("km"),
+                _H,
                 "Atmospheric scale height H = k_B T_eq / (μ m_H g), μ=2.3",
                 short_description="Scale height",
                 abs="https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract",
@@ -311,14 +343,24 @@ def derived_planet_quantities(
             _sig = transmission_signal_size(_H, r_planet, r_star)
             _add(
                 "transmission_signal_1H",
-                np.asarray(_sig),
+                _sig,
                 "Single-scale-height transmission signal ΔD = 2H R_p / R★² (ppm)",
                 short_description="Transmission signal (1H)",
                 abs="https://doi.org/10.1126/science.1245450",
             )
 
+            _fp_fs = planet_star_flux_ratio(r_planet, _teq, r_star, _teff)
+            _add(
+                "planet_star_flux_ratio_mid_ir",
+                np.asarray(_fp_fs),
+                "Planet/star thermal flux ratio at 7.5 µm using blackbody approximation",
+                short_description="Planet/star mid-IR flux ratio",
+                wavelength="7.5 um",
+                abs="https://ui.adsabs.harvard.edu/abs/2018PASP..130k4401K/abstract",
+            )
+
             if j_mag is not None:
-                _jmag = j_mag if isinstance(j_mag, u.Quantity) else u.Quantity(j_mag, "mag")
+                _jmag = j_mag
                 _tsm = transmission_spectroscopy_metric(r_planet, _m_planet, _teq, r_star, _jmag)
                 _add(
                     "tsm",
@@ -329,7 +371,7 @@ def derived_planet_quantities(
                 )
 
             if k_mag is not None:
-                _kmag = k_mag if isinstance(k_mag, u.Quantity) else u.Quantity(k_mag, "mag")
+                _kmag = k_mag
                 _esm = emission_spectroscopy_metric(r_planet, _teq, r_star, _kmag, _teff)
                 _add(
                     "esm",

@@ -9,6 +9,7 @@ https://github.com/nespinoza/kevinADS/blob/main/utils.py
 
 import astropy.constants as const
 import astropy.units as u
+from astropy.units.cds import ppm  # type: ignore[import]
 import numpy as np
 from astropy.modeling.models import BlackBody
 
@@ -16,6 +17,7 @@ from ..type import QuantityLike
 
 __all__ = [
     "emission_spectroscopy_metric",
+    "planet_star_flux_ratio",
     "scale_height",
     "transmission_signal_size",
     "transmission_spectroscopy_metric",
@@ -49,16 +51,16 @@ def scale_height(
     ----------
     Winn, J. N. (2010), in Exoplanets, edited by S. Seager. Published by University of Arizona Press, Tucson, AZ, 2010, 526 pp. ISBN 978-0-8165-2945-2., p.55-77
     https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract
+
+    Examples
+    --------
+    >>> from exohelp.planet.spectroscopy import scale_height
+    >>> round(scale_height(1000, 10.0).value)  # T=1000 K, g=10 m/s², μ=2.3 → ~361 km
+    361
     """
-    temperature = (
-        temperature if isinstance(temperature, u.Quantity) else u.Quantity(temperature, "K")
-    )
-    gravity = gravity if isinstance(gravity, u.Quantity) else u.Quantity(gravity, "m / s^2")
-    mean_molecular_weight = (
-        mean_molecular_weight
-        if isinstance(mean_molecular_weight, u.Quantity)
-        else u.Quantity(mean_molecular_weight, "u")
-    )
+    temperature = u.Quantity(temperature, "K")
+    gravity = u.Quantity(gravity, "m / s^2")
+    mean_molecular_weight = u.Quantity(mean_molecular_weight, "u")
     return (const.k_B * temperature / (mean_molecular_weight * gravity)).to("km")  # type: ignore[attr-defined]
 
 
@@ -73,14 +75,15 @@ def transmission_signal_size(
     The signal is the annular area of N scale heights of atmosphere projected
     against the stellar disk:
 
-        ΔD = 2 N H R_p / R_*²
+        ΔD = (2 N_H R_p + (N_H)²) / R_*²
 
     Parameters
     ----------
     scale_height : QuantityLike
         Atmospheric scale height. Assumed to be in km if no unit is given.
     r_planet : QuantityLike
-        Planet radius. Assumed to be in Earth radii if no unit is given.
+        The radius within which the planet is optically thick at all wavelengths.
+        Assumed to be in Earth radii if no unit is given.
     r_star : QuantityLike
         Stellar radius. Assumed to be in Solar radii if no unit is given.
     n_scale_heights : float
@@ -96,18 +99,31 @@ def transmission_signal_size(
     Winn, J. N. (2010), in Exoplanets, edited by S. Seager. Published by University of Arizona Press, Tucson, AZ, 2010, 526 pp. ISBN 978-0-8165-2945-2., p.55-77
     https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract
 
-    de Wit, J. & Seager, S. (2013), Science, 342, 1473.
+    de Wit, J. & Seager, S. (2013), Science, 342, 1473. (Equation 36)
     https://doi.org/10.1126/science.1245450
-    """
-    scale_height = (
-        scale_height if isinstance(scale_height, u.Quantity) else u.Quantity(scale_height, "km")
-    )
-    r_planet = r_planet if isinstance(r_planet, u.Quantity) else u.Quantity(r_planet, "R_earth")
-    r_star = r_star if isinstance(r_star, u.Quantity) else u.Quantity(r_star, "R_sun")
 
-    signal_ppm = (2 * n_scale_heights * scale_height * r_planet / r_star**2).decompose().value * 1e6
-    result = np.asarray(signal_ppm)
-    return result.item() if result.ndim == 0 else result
+    Examples
+    --------
+    >>> from exohelp.planet.spectroscopy import transmission_signal_size
+    >>> sig = transmission_signal_size(100, 2.0, 1.0)  # 100 km scale height, 2 R_earth, 1 R_sun
+    >>> sig.unit.to_string()
+    'ppm'
+    >>> float(round(sig.value, 1))
+    5.3
+    """
+    scale_height = u.Quantity(scale_height, "km")
+    r_planet = u.Quantity(r_planet, "R_earth")
+    r_star = u.Quantity(r_star, "R_sun")
+
+    atmosphere_height = n_scale_heights * scale_height
+    annulus_area = (r_planet + atmosphere_height) ** 2 - r_planet**2
+    signal_ratio = annulus_area / r_star**2
+
+    return (
+        signal_ratio.to(ppm)
+        if isinstance(signal_ratio, u.Quantity)
+        else u.Quantity(signal_ratio, ppm)
+    )
 
 
 def _get_scale_factor(r_planet: QuantityLike) -> np.ndarray:
@@ -180,14 +196,11 @@ def transmission_spectroscopy_metric(
     Kempton, E. M.-R., et al. (2018), PASP, 130, 114401.
     https://doi.org/10.1088/1538-3873/aadf6f
 
-    Example
-    -------
-    >>> r_planet = 1.5 * u.R_earth
-    >>> m_planet = 5.0 * u.M_earth
-    >>> teq_planet = 500 * u.K
-    >>> r_star = 0.5 * u.R_sun
-    >>> jmag_star = 8 * u.mag
-    >>> transmission_spectroscopy_metric(r_planet, m_planet, teq_planet, r_star, jmag_star)
+    Examples
+    --------
+    >>> from exohelp.planet.spectroscopy import transmission_spectroscopy_metric
+    >>> round(transmission_spectroscopy_metric(1.5, 5.0, 500, 0.5, 8))
+    43
     """
     r_planet = u.Quantity(r_planet, "R_earth")
     m_planet = u.Quantity(m_planet, "M_earth")
@@ -201,7 +214,7 @@ def transmission_spectroscopy_metric(
         / (m_planet.value * r_star.value**2)
         * 10 ** (-jmag_star.value / 5)
     )
-    return tsm.item() if np.ndim(tsm) == 0 else tsm
+    return tsm
 
 
 def _planck_lambda(wavelength: u.Quantity, temperature: u.Quantity) -> u.Quantity:
@@ -210,6 +223,55 @@ def _planck_lambda(wavelength: u.Quantity, temperature: u.Quantity) -> u.Quantit
         u.W / (u.m**3 * u.sr),  # type: ignore[union-attr]
         equivalencies=u.spectral_density(wavelength),
     )
+
+
+def planet_star_flux_ratio(
+    r_planet: QuantityLike,
+    teq_planet: QuantityLike,
+    r_star: QuantityLike,
+    teff_star: QuantityLike,
+    wavelength: QuantityLike = u.Quantity(7.5, "micron"),
+) -> np.ndarray:
+    """Thermal planet/star flux ratio at wavelength using blackbody approximation.
+
+    Computes:
+
+        (F_p/F_*)_lambda = [B_lambda(lambda, T_day) / B_lambda(lambda, T_*)] * (R_p/R_*)^2
+
+    with day-side temperature T_day = 1.10 * T_eq (Kempton et al. 2018 convention).
+
+    Parameters
+    ----------
+    r_planet : QuantityLike
+        Planet radius. If unitless, assumed Earth radii.
+    teq_planet : QuantityLike
+        Planet equilibrium temperature. If unitless, assumed Kelvin.
+    r_star : QuantityLike
+        Stellar radius. If unitless, assumed Solar radii.
+    teff_star : QuantityLike
+        Stellar effective temperature. If unitless, assumed Kelvin.
+    wavelength : QuantityLike, optional
+        Wavelength for the thermal contrast. Default is 7.5 micron.
+
+    Returns
+    -------
+    numpy.ndarray
+        Dimensionless planet/star flux ratio.
+    """
+    r_planet = u.Quantity(r_planet, "R_earth")
+    teq_planet = u.Quantity(teq_planet, "K")
+    r_star = u.Quantity(r_star, "R_sun")
+    teff_star = u.Quantity(teff_star, "K")
+    wavelength = u.Quantity(wavelength, "m")
+
+    day_side_temperature = 1.10 * teq_planet
+    b_day = _planck_lambda(wavelength, day_side_temperature)
+    b_star = _planck_lambda(wavelength, teff_star)
+    planck_ratio = (b_day / b_star).value
+    geometric_factor = (r_planet / r_star).decompose().value ** 2
+
+    flux_ratio = planck_ratio * geometric_factor
+    return flux_ratio
 
 
 def emission_spectroscopy_metric(
@@ -252,7 +314,15 @@ def emission_spectroscopy_metric(
     Returns
     -------
     numpy.ndarray
-        ESM value(s) — scalar if inputs are scalars.
+        ESM value(s)
+
+    Examples
+    --------
+    >>> from exohelp.planet.spectroscopy import emission_spectroscopy_metric
+    >>> import numpy as np
+    >>> esm = emission_spectroscopy_metric(2.0, 500, 0.5, 8.0, 4000)
+    >>> float(np.round(esm, 1))
+    2.8
     """
     r_planet = u.Quantity(r_planet, "R_earth")
     teq_planet = u.Quantity(teq_planet, "K")
@@ -261,15 +331,16 @@ def emission_spectroscopy_metric(
     teff_star = u.Quantity(teff_star, "K")
     wavelength = u.Quantity(wavelength, "m")
 
-    day_side_temperature = 1.10 * teq_planet
-    b_day = _planck_lambda(wavelength, day_side_temperature)
-    b_star = _planck_lambda(wavelength, teff_star)
-    planck_ratio = (b_day / b_star).value
-
-    geometric_factor = (r_planet / r_star).decompose().value ** 2
-    mag_factor = 10 ** (-kmag_star.to("mag").value / 5.0)
+    thermal_contrast = planet_star_flux_ratio(
+        r_planet=r_planet,
+        teq_planet=teq_planet,
+        r_star=r_star,
+        teff_star=teff_star,
+        wavelength=wavelength,
+    )
+    mag_factor = 10 ** (-kmag_star.value / 5.0)
     norm_factor = 4.29e6  # Normalization from Kempton et al. (2018)
 
-    esm = norm_factor * planck_ratio * geometric_factor * mag_factor
+    esm = norm_factor * thermal_contrast * mag_factor
 
-    return esm if esm.size > 1 else esm.item()
+    return esm
