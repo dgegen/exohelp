@@ -39,8 +39,8 @@ def test_log_surface_gravity_is_dimensionless():
     )
 
     assert "log_surface_gravity" in table.colnames
-    assert table["log_surface_gravity"].unit is None
-    assert np.isfinite(table["log_surface_gravity"][0])
+    assert table["log_surface_gravity"].unit is None  # type: ignore[assignment]
+    assert np.isfinite(table["log_surface_gravity"][0])  # type: ignore[index]
 
 
 def test_mid_ir_flux_ratio_is_dimensionless_and_finite():

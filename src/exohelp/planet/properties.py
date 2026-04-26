@@ -4,7 +4,7 @@ from typing import NamedTuple
 
 
 from ..kepler import keplers_third_law
-from ..type import QuantityLike
+from ..type import QuantityLike, ArrayLike
 from ..units import S_earth
 
 __all__ = [
@@ -94,7 +94,7 @@ def hill_sphere_radius(
     semi_major_axis: QuantityLike,
     m_planet: QuantityLike,
     m_star: QuantityLike = 1.0,
-    eccentricity: QuantityLike = 0.0,
+    eccentricity: ArrayLike = 0.0,
 ) -> u.Quantity:
     """Compute the Hill sphere radius of a planet.
 

@@ -2,7 +2,7 @@ import astropy.constants as const
 import astropy.units as u
 import numpy as np
 
-from exohelp.type import QuantityLike
+from ..type import QuantityLike
 
 __all__ = ["luminosity"]
 

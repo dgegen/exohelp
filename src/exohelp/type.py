@@ -1,5 +1,8 @@
-from typing import Union
-import numpy as np
-import astropy.units as u
+from typing import TypeAlias
 
-QuantityLike = Union[float, u.Quantity, np.ndarray]
+import astropy.units as u
+import numpy as np
+import numpy.typing as npt
+
+ArrayLike: TypeAlias = float | npt.NDArray[np.float64]
+QuantityLike: TypeAlias = u.Quantity | ArrayLike

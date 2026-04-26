@@ -18,10 +18,12 @@ import astropy.units as u
 import numpy as np
 from astropy.table import QTable
 
+from ..type import QuantityLike, ArrayLike
+
 __all__ = ["sample_rotation_period_and_age"]
 
 
-def age_mamajek2008(log_rhk, jitter=None):
+def age_mamajek2008(log_rhk: ArrayLike, jitter: ArrayLike | None = None) -> u.Quantity:
     """
     Chromospheric age from log R'_HK.
 
@@ -71,14 +73,15 @@ def age_mamajek2008(log_rhk, jitter=None):
         log_tau[very_active_mask] += jitter[very_active_mask] * very_active_sigma
         log_tau[active_mask] += jitter[active_mask] * active_sigma
 
-    age = u.Quantity(10**log_tau, "year")
+    age = u.Quantity(10**log_tau, "year").to("Gyr")
 
     mask_valid = (log_rhk > -5.1) & (log_rhk < -4.0)
+    age[~mask_valid] = np.nan * u.Unit("Gyr")
 
-    return np.where(mask_valid, age.to("Gyr"), np.nan)
+    return age
 
 
-def log_rhk_from_age_mamajek2008(age):
+def log_rhk_from_age_mamajek2008(age: QuantityLike) -> np.ndarray:
     """
     Inverse chromospheric relation: log R'_HK from age.
 
@@ -108,7 +111,7 @@ def log_rhk_from_age_mamajek2008(age):
     >>> abs(float(log_rhk_from_age_mamajek2008(age)) - log_rhk) < 0.05
     True
     """
-    age = u.Quantity(age).to(u.year).value
+    age = u.Quantity(age, "year").value
     log_tau = np.log10(age)
 
     valid_mask = (log_tau > 6.7) & (log_tau < 9.9)
@@ -118,7 +121,7 @@ def log_rhk_from_age_mamajek2008(age):
     return np.where(valid_mask, log_rhk, np.nan)
 
 
-def tau_c_noyes1984(bv):
+def tau_c_noyes1984(bv: ArrayLike) -> u.Quantity:
     """
     Local convective turnover time from B-V color.
 
@@ -154,7 +157,7 @@ def tau_c_noyes1984(bv):
     return u.Quantity(10**log10_tau_c, "day")
 
 
-def tau_c_mittag2018(bv) -> u.Quantity:
+def tau_c_mittag2018(bv: ArrayLike) -> u.Quantity:
     """
     Global convective turnover time from B-V color.
 
@@ -203,7 +206,9 @@ def tau_c_mittag2018(bv) -> u.Quantity:
     return u.Quantity(tau_c, "day")
 
 
-def rotation_period_mittag2018(rhk_plus, bv, slope=0.15):
+def rotation_period_mittag2018(
+    rhk_plus: ArrayLike, bv: ArrayLike, slope: float = 0.15
+) -> u.Quantity:
     """
     Calculates the rotation period from magnetic activity excess and B-V color.
 
@@ -233,7 +238,7 @@ def rotation_period_mittag2018(rhk_plus, bv, slope=0.15):
     return u.Quantity(10**log_p, "day")
 
 
-def gyro_age_barnes2010(prot, tau_c):
+def gyro_age_barnes2010(prot: QuantityLike, tau_c: QuantityLike) -> u.Quantity:
     """
     Calculates stellar age from rotation period and global convective turnover time.
 
@@ -262,8 +267,8 @@ def gyro_age_barnes2010(prot, tau_c):
     >>> round(float(gyro_age_barnes2010(14.4 * u.day, tau_c_noyes1984(0.65)).value[0]), 1)
     3.9
     """
-    p = prot.to(u.day).value
-    tau = tau_c.to(u.day).value
+    p = u.Quantity(prot, "day").value
+    tau = u.Quantity(tau_c, "day").value
 
     # Constants from Barnes (2010) / Mittag (2018) snippet
     p0 = 1.1  # [days]
@@ -273,11 +278,11 @@ def gyro_age_barnes2010(prot, tau_c):
     term1 = (tau / kc) * np.log(p / p0)
     term2 = (ki / (2 * tau)) * (p**2 - p0**2)
 
-    age_myr = term1 + term2
-    return (age_myr * u.Myr).to(u.Gyr)
+    age_myr = u.Quantity(term1 + term2, "Myr")
+    return age_myr.to("Gyr")
 
 
-def rotation_period_noyes1984(log_rhk, tau_c):
+def rotation_period_noyes1984(log_rhk: ArrayLike, tau_c: QuantityLike) -> u.Quantity:
     """
     Rotation period from log R'_HK and local convective turnover time.
 
@@ -318,7 +323,7 @@ def rotation_period_noyes1984(log_rhk, tau_c):
     return prot
 
 
-def rossby_number_mamajek2008(log_rhk):
+def rossby_number_mamajek2008(log_rhk: ArrayLike) -> np.ndarray:
     """
     Rossby number (Ro = P / tau_c) from log R'_HK.
 
@@ -363,7 +368,7 @@ def rossby_number_mamajek2008(log_rhk):
     return rossby_number
 
 
-def rotation_period_mamajek2008(log_rhk, tau_c):
+def rotation_period_mamajek2008(log_rhk: ArrayLike, tau_c: u.Quantity) -> u.Quantity:
     """
     Rotation period from Rossby number and convective turnover time.
 
@@ -396,12 +401,19 @@ def rotation_period_mamajek2008(log_rhk, tau_c):
     log_rhk = np.asarray(log_rhk, dtype=float)
 
     rossby_number = rossby_number_mamajek2008(log_rhk)
-    prot = rossby_number * tau_c.to(u.day).value  # NaN propagates
+    prot = u.Quantity(rossby_number, u.dimensionless_unscaled) * u.Quantity(tau_c, "day")
 
-    return prot * u.day
+    return prot
 
 
-def gyro_age_mamajek2008(prot, bv, a=0.407, b=0.325, c=0.495, n=0.566):
+def gyro_age_mamajek2008(
+    prot: QuantityLike,
+    bv: ArrayLike,
+    a: ArrayLike = 0.407,
+    b: ArrayLike = 0.325,
+    c: ArrayLike = 0.495,
+    n: ArrayLike = 0.566,
+) -> u.Quantity:
     """
     Gyrochronological age from rotation period and B-V color.
 
@@ -458,8 +470,15 @@ def gyro_age_mamajek2008(prot, bv, a=0.407, b=0.325, c=0.495, n=0.566):
 
 
 def sample_rotation_period_and_age(
-    log_rhk, log_rhk_err, mag_b, mag_b_err, mag_v, mag_v_err, n_samples=1000, seed=None
-):
+    log_rhk: float,
+    log_rhk_err: float,
+    mag_b: float,
+    mag_b_err: float,
+    mag_v: float,
+    mag_v_err: float,
+    n_samples: int = 1000,
+    seed: int | None = None,
+) -> QTable:
     """
     Monte Carlo sampling of rotation period and age from chromospheric activity and
     B-V color.
@@ -540,13 +559,13 @@ def sample_rotation_period_and_age(
     )
     table[
         "prot_mamajek"
-    ].description = "Rotation period via Rossby number (Mamajek & Hillenbrand 2008, Eqs. 5 & 7)"
-    table["prot_noyes"].description = "Rotation period via Noyes et al. (1984), Eq. 3"
+    ].description = "Rotation period via Rossby number (Mamajek & Hillenbrand 2008, Eqs. 5 & 7)"  # type: ignore
+    table["prot_noyes"].description = "Rotation period via Noyes et al. (1984), Eq. 3"  # type: ignore
     table[
         "age_mamajek_gyro"
-    ].description = "Gyrochronological age (Mamajek & Hillenbrand 2008, Eqs. 12-14)"
+    ].description = "Gyrochronological age (Mamajek & Hillenbrand 2008, Eqs. 12-14)"  # type: ignore
     table[
         "age_mamajek_chromo"
-    ].description = "Chromospheric age (Mamajek & Hillenbrand 2008, Eq. 3 with jitter)"
+    ].description = "Chromospheric age (Mamajek & Hillenbrand 2008, Eq. 3 with jitter)"  # type: ignore
 
     return table

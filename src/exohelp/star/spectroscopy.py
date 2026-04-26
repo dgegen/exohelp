@@ -45,7 +45,7 @@ def calculate_microturbulent_velocity_bruntt2010(teff):
     """
     delta_t = teff - 5700
     v_mic = 1.01 + (4.56e-4 * delta_t) + (2.75e-7 * delta_t**2)
-    return u.Quantity(v_mic, u.km / u.s)
+    return u.Quantity(v_mic, "km / s")
 
 
 def calculate_macroturbulent_velocity_bruntt2010(teff):
@@ -71,7 +71,7 @@ def calculate_macroturbulent_velocity_bruntt2010(teff):
     """
     delta_t = teff - 5700
     v_mac = 2.26 + (2.90e-3 * delta_t) + (5.86e-7 * delta_t**2)
-    return u.Quantity(v_mac, u.km / u.s)
+    return u.Quantity(v_mac, "km / s")
 
 
 def calculate_v_mac_doyle2014(teff, logg):
@@ -101,7 +101,7 @@ def calculate_v_mac_doyle2014(teff, logg):
     """
     t_diff = teff - 5777
     v_mac = 3.21 + (2.33e-3 * t_diff) + (2.0e-6 * t_diff**2) - (2.0 * (logg - 4.44))
-    return u.Quantity(v_mac, u.km / u.s)
+    return u.Quantity(v_mac, "km / s")
 
 
 def rotation_period_from_vsini(vsini, r_star, inclination_star=90.0):
@@ -179,9 +179,9 @@ def sample_v_mic_and_v_mac(teff, teff_err, logg, logg_err, n_samples=100_000, se
         [teff_s, logg_s, v_mic_samples, v_mac_bruntt_samples, v_mac_doyle_samples],
         names=["teff", "logg", "v_mic", "v_mac_bruntt", "v_mac_doyle"],
     )
-    table["v_mic"].description = "Micro-turbulent velocity (Bruntt et al. 2010, Eq. 10)"
-    table["v_mac_bruntt"].description = "Macro-turbulent velocity (Bruntt et al. 2010, Eq. 9)"
-    table["v_mac_doyle"].description = "Macro-turbulent velocity (Doyle et al. 2014, Eq. 8)"
+    table["v_mic"].description = "Micro-turbulent velocity (Bruntt et al. 2010, Eq. 10)"  # type: ignore
+    table["v_mac_bruntt"].description = "Macro-turbulent velocity (Bruntt et al. 2010, Eq. 9)"  # type: ignore
+    table["v_mac_doyle"].description = "Macro-turbulent velocity (Doyle et al. 2014, Eq. 8)"  # type: ignore
 
     return table
 
