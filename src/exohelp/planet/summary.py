@@ -32,7 +32,7 @@ __all__ = ["DERIVED_LATEX_PATTERNS", "derived_planet_quantities"]
 
 
 DERIVED_LATEX_PATTERNS = [
-    (r"^k$", r"k_{planet_index}"),
+    (r"^k$", r"R_{planet_index}/R_\star"),
     (r"^a$", r"a_{planet_index}"),
     (r"^a_over_r_star$", r"(a_{planet_index}/R_\star)"),
     (r"^inclination$", r"i_{planet_index}"),
