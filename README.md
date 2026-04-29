@@ -132,7 +132,7 @@ result = sample_rotation_period_and_age(
 )
 ```
 
-Returns a `QTable` with sampled rotation periods (`prot_noyes`, `prot_mamajek`) and ages (`age_mamajek_gyro`, `age_mamajek_chromo`) based on Noyes (1984) and Mamajek & Hillenbrand (2008).
+Returns a `QTable` with sampled rotation periods (`prot_noyes`, `prot_mamajek`) and ages (`age_gyro_mamajek`, `age_chromo_mamajek`) based on Noyes (1984) and Mamajek & Hillenbrand (2008).
 
 #### Spectroscopic velocities
 

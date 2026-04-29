@@ -516,7 +516,7 @@ def sample_rotation_period_and_age(
     >>> summary = table.to_pandas().describe(percentiles=[0.16, 0.5, 0.84])
     >>> summary.loc['upper_error'] = summary.loc['84%'] - summary.loc['50%']
     >>> summary.loc['lower_error'] = summary.loc['50%'] - summary.loc['16%']
-    >>> summary.loc[:, ['log_rhk', 'prot_mamajek', 'prot_noyes', 'age_mamajek_gyro', 'age_mamajek_chromo']].round(3) # doctest: +SKIP
+    >>> summary.loc[:, ['log_rhk', 'prot_mamajek', 'prot_noyes', 'age_gyro_mamajek', 'age_chromo_mamajek']].round(3) # doctest: +SKIP
     """
     rng = np.random.default_rng(seed)
     mag_b_s = rng.normal(mag_b, mag_b_err, n_samples)
@@ -531,10 +531,11 @@ def sample_rotation_period_and_age(
     n = rng.normal(0.566, 0.008, n_samples)
 
     tau_c_noyes_s = tau_c_noyes1984(mag_bv_s)
+    tau_c_mittag_s = tau_c_mittag2018(mag_bv_s)
     prot_mamajek_s = rotation_period_mamajek2008(log_rhk_s, tau_c_noyes_s)
     prot_noyes_s = rotation_period_noyes1984(log_rhk_s, tau_c_noyes_s)
     age_mamajek_s = gyro_age_mamajek2008(prot_mamajek_s, mag_bv_s, a=a, b=b, c=c, n=n)
-
+    age_gyro_barnes_s = gyro_age_barnes2010(prot_mamajek_s, tau_c_mittag_s)
     age_chromospheric_s = age_mamajek2008(log_rhk_s, jitter=rng.normal(0, 1, n_samples))
 
     table = QTable(
@@ -545,6 +546,7 @@ def sample_rotation_period_and_age(
             prot_mamajek_s,
             prot_noyes_s,
             age_mamajek_s,
+            age_gyro_barnes_s,
             age_chromospheric_s,
         ],
         names=[
@@ -553,8 +555,9 @@ def sample_rotation_period_and_age(
             "tau_c_noyes",
             "prot_mamajek",
             "prot_noyes",
-            "age_mamajek_gyro",
-            "age_mamajek_chromo",
+            "age_gyro_mamajek",
+            "age_gyro_barnes",
+            "age_chromo_mamajek",
         ],
     )
     table[
@@ -562,10 +565,13 @@ def sample_rotation_period_and_age(
     ].description = "Rotation period via Rossby number (Mamajek & Hillenbrand 2008, Eqs. 5 & 7)"  # type: ignore
     table["prot_noyes"].description = "Rotation period via Noyes et al. (1984), Eq. 3"  # type: ignore
     table[
-        "age_mamajek_gyro"
+        "age_gyro_mamajek"
     ].description = "Gyrochronological age (Mamajek & Hillenbrand 2008, Eqs. 12-14)"  # type: ignore
     table[
-        "age_mamajek_chromo"
+        "age_chromo_mamajek"
     ].description = "Chromospheric age (Mamajek & Hillenbrand 2008, Eq. 3 with jitter)"  # type: ignore
+    table[
+        "age_gyro_barnes"
+    ].description = "Gyrochronological age (Barnes 2010, as cited in Mittag et al. 2018, Eq. 13)"  # type: ignore
 
     return table

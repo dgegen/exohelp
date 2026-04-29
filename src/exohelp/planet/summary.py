@@ -34,7 +34,7 @@ __all__ = ["DERIVED_LATEX_PATTERNS", "derived_planet_quantities"]
 DERIVED_LATEX_PATTERNS = [
     (r"^k$", r"R_{planet_index}/R_\star"),
     (r"^a$", r"a_{planet_index}"),
-    (r"^a_over_r_star$", r"(a_{planet_index}/R_\star)"),
+    (r"^a_over_r_star$", r"a_{planet_index}/R_\star"),
     (r"^inclination$", r"i_{planet_index}"),
     (r"^insolation$", r"S_{planet_index}"),
     (r"^surface_gravity$", r"g_{planet_index}"),
@@ -352,10 +352,12 @@ def derived_planet_quantities(
                 abs="https://doi.org/10.1126/science.1245450",
             )
 
-            _fp_fs = planet_star_flux_ratio(r_planet, _teq, r_star, _teff)
+            _fp_fs = planet_star_flux_ratio(
+                r_planet, _teq, r_star, _teff, wavelength=u.Quantity(7.5, "micron")
+            )
             _add(
                 "planet_star_flux_ratio_mid_ir",
-                np.asarray(_fp_fs),
+                _fp_fs,
                 "Planet/star thermal flux ratio at 7.5 µm using blackbody approximation",
                 short_description="Planet/star mid-IR flux ratio",
                 wavelength="7.5 um",

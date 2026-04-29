@@ -54,7 +54,7 @@ def test_mid_ir_flux_ratio_is_dimensionless_and_finite():
     )
 
     assert "planet_star_flux_ratio_mid_ir" in table.colnames
-    assert table["planet_star_flux_ratio_mid_ir"].unit is None  # type: ignore[assignment]
+    assert str(table["planet_star_flux_ratio_mid_ir"].unit) == "ppm"  # type: ignore[assignment]
     assert np.isfinite(table["planet_star_flux_ratio_mid_ir"][0])  # type: ignore[index]
 
 

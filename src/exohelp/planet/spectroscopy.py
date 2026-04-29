@@ -117,13 +117,9 @@ def transmission_signal_size(
 
     atmosphere_height = n_scale_heights * scale_height
     annulus_area = (r_planet + atmosphere_height) ** 2 - r_planet**2
-    signal_ratio = annulus_area / r_star**2
+    signal_ratio = u.Quantity(annulus_area / r_star**2)
 
-    return (
-        signal_ratio.to(ppm)
-        if isinstance(signal_ratio, u.Quantity)
-        else u.Quantity(signal_ratio, ppm)
-    )
+    return signal_ratio.to(ppm)
 
 
 def _get_scale_factor(r_planet: QuantityLike) -> np.ndarray:
@@ -231,8 +227,9 @@ def planet_star_flux_ratio(
     r_star: QuantityLike,
     teff_star: QuantityLike,
     wavelength: QuantityLike = u.Quantity(7.5, "micron"),
-) -> np.ndarray:
-    """Thermal planet/star flux ratio at wavelength using blackbody approximation.
+) -> u.Quantity:
+    """Thermal planet/star flux ratio at wavelength using blackbody approximation in
+    ppm.
 
     Computes:
 
@@ -256,7 +253,8 @@ def planet_star_flux_ratio(
     Returns
     -------
     numpy.ndarray
-        Dimensionless planet/star flux ratio.
+        Dimensionless planet/star flux ratio at the specified wavelength
+        in units of ppm.
     """
     r_planet = u.Quantity(r_planet, "R_earth")
     teq_planet = u.Quantity(teq_planet, "K")
@@ -270,8 +268,9 @@ def planet_star_flux_ratio(
     planck_ratio = (b_day / b_star).value
     geometric_factor = (r_planet / r_star).decompose().value ** 2
 
-    flux_ratio = planck_ratio * geometric_factor
-    return flux_ratio
+    flux_ratio = u.Quantity(planck_ratio * geometric_factor)
+
+    return flux_ratio.to(ppm)
 
 
 def emission_spectroscopy_metric(
@@ -337,7 +336,7 @@ def emission_spectroscopy_metric(
         r_star=r_star,
         teff_star=teff_star,
         wavelength=wavelength,
-    )
+    ).to("")  # convert from ppm to dimensionless
     mag_factor = 10 ** (-kmag_star.value / 5.0)
     norm_factor = 4.29e6  # Normalization from Kempton et al. (2018)
 
