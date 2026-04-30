@@ -100,7 +100,8 @@ def _format_asymmetric(
 
     if pm_if_equal and upper_str == lower_str:
         return rf"${mean_str} \pm {upper_str}$"
-    return rf"${mean_str}^{{+{upper_str}}}_{{-{lower_str}}}$"
+    mean_grouped = f"{{{mean_str}}}" if "^" in mean_str else mean_str
+    return rf"${mean_grouped}^{{+{upper_str}}}_{{-{lower_str}}}$"
 
 
 def _format_pm(
