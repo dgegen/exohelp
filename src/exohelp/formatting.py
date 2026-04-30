@@ -37,7 +37,9 @@ def _format_scientific_latex(f: float, significant_digits: int = 1) -> str:
         base, exponent = float_str.split("e")
         exponent_str = r"10^{{{0}}}".format(int(exponent))
         if base == "1":
-            return exponent_str
+            if significant_digits <= 1:
+                return exponent_str
+            base = "1." + "0" * (significant_digits - 1)
         return r"{0} \times {1}".format(base, exponent_str)
     return float_str
 
@@ -58,10 +60,15 @@ def format_number(
     else:
         result = f"{num:.{decimal_places}f}"
 
-    if strip_trailing_zeros and "." in result:
-        result = result.rstrip("0").rstrip(".")
-        if result in {"", "-"}:
-            result = "0"
+    if strip_trailing_zeros:
+        if r"\times" in result:
+            base_part, exponent_part = result.split(r" \times ", 1)
+            base_part = base_part.rstrip("0").rstrip(".")
+            result = exponent_part if base_part == "1" else rf"{base_part} \times {exponent_part}"
+        elif "." in result:
+            result = result.rstrip("0").rstrip(".")
+            if result in {"", "-"}:
+                result = "0"
 
     return result
 
