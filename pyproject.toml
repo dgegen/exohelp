@@ -10,6 +10,7 @@ archive = [
 ]
 dev = [
   {include-group = "test"},
+  "ipython>=9.13.0",
   "pre-commit>=4.5.1",
   "ruff>=0.14.11"
 ]
