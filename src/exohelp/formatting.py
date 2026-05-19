@@ -5,6 +5,7 @@ import numpy as np
 __all__ = [
     "decimal_places_from_sigfigs",
     "format_number",
+    "format_samples",
     "format_summary_table",
     "format_value_with_uncertainty",
 ]
@@ -74,7 +75,7 @@ def format_number(
 
 
 def _format_asymmetric(
-    mean: float,
+    value: float,
     lower_uncertainty: float,
     upper_uncertainty: float,
     significant_digits: int,
@@ -92,9 +93,9 @@ def _format_asymmetric(
     lower_prec = int(decimal_places_from_sigfigs(lower_uncertainty, significant_digits=lower_sig))
 
     if upper_prec <= lower_prec:
-        mean_prec, mean_sig = upper_prec, upper_sig
+        value_prec, value_sig = upper_prec, upper_sig
     else:
-        mean_prec, mean_sig = lower_prec, lower_sig
+        value_prec, value_sig = lower_prec, lower_sig
 
     fmt = {"sci_notation_threshold": sci_notation_threshold}
     upper_str = format_number(
@@ -103,16 +104,16 @@ def _format_asymmetric(
     lower_str = format_number(
         lower_uncertainty, decimal_places=lower_prec, significant_digits=lower_sig, **fmt
     )
-    mean_str = format_number(mean, decimal_places=mean_prec, significant_digits=mean_sig, **fmt)
+    value_str = format_number(value, decimal_places=value_prec, significant_digits=value_sig, **fmt)
 
     if pm_if_equal and upper_str == lower_str:
-        return rf"${mean_str} \pm {upper_str}$"
-    mean_grouped = f"{{{mean_str}}}" if "^" in mean_str else mean_str
-    return rf"${mean_grouped}^{{+{upper_str}}}_{{-{lower_str}}}$"
+        return rf"${value_str} \pm {upper_str}$"
+    value_grouped = f"{{{value_str}}}" if "^" in value_str else value_str
+    return rf"${value_grouped}^{{+{upper_str}}}_{{-{lower_str}}}$"
 
 
 def _format_pm(
-    mean: float,
+    value: float,
     uncertainty: float,
     significant_digits: int,
     sci_notation_threshold: int,
@@ -125,31 +126,31 @@ def _format_pm(
         "sci_notation_threshold": sci_notation_threshold,
         "significant_digits": sig_digits,
     }
-    return rf"${format_number(mean, **fmt)} \pm {format_number(uncertainty, **fmt)}$"
+    return rf"${format_number(value, **fmt)} \pm {format_number(uncertainty, **fmt)}$"
 
 
 def format_value_with_uncertainty(
-    mean: float,
+    value: float,
     lower_uncertainty: float,
     upper_uncertainty: float | None = None,
-    significant_digits: int = 1,
+    significant_digits: int = 2,
     sci_notation_threshold: int = 5,
     adaptive_sigfigs: bool = False,
     uncertainty_style: Literal["asymmetric", "pm"] = "asymmetric",
     pm_if_equal: bool = True,
 ) -> str:
-    """Return a LaTeX string formatting mean with its uncertainty.
+    """Return a LaTeX string formatting a value with its uncertainty.
 
     For uncertainty_style="asymmetric", lower_uncertainty and upper_uncertainty
-    are the lower and upper deviations from mean (both positive).
-    For uncertainty_style="pm", lower_uncertainty is used as the symmetric ± value.
+    are the lower and upper deviations from the value (both positive).
+    For uncertainty_style="pm", lower_uncertainty is used as the symmetric ± uncertainty.
     """
     if upper_uncertainty is None:
         upper_uncertainty = lower_uncertainty
 
     if uncertainty_style == "asymmetric":
         return _format_asymmetric(
-            mean,
+            value,
             lower_uncertainty,
             upper_uncertainty,
             significant_digits,
@@ -158,7 +159,7 @@ def format_value_with_uncertainty(
             pm_if_equal,
         )
     return _format_pm(
-        mean, lower_uncertainty, significant_digits, sci_notation_threshold, adaptive_sigfigs
+        value, lower_uncertainty, significant_digits, sci_notation_threshold, adaptive_sigfigs
     )
 
 
@@ -206,3 +207,59 @@ def format_summary_table(
             for c, lo, up in zip(center, lower, upper)
         ]
     )
+
+
+def format_samples(
+    arr: Any,
+    center_stat: Literal["median", "mean"] = "median",
+    sigma: float = 1.0,
+    **kwargs: Any,
+) -> str:
+    r"""Format an array of samples into a LaTeX string summarizing its distribution.
+
+    Parameters
+    ----------
+    arr : array_like
+        Input array of values (e.g., from an MCMC chain). NaNs are automatically ignored.
+    center_stat : {'median', 'mean'}, default 'median'
+        Statistic to use for the central value. If 'mean', standard deviation is used for uncertainties.
+        If 'median', quantiles corresponding to the specified `sigma` for a normal distribution are used.
+    sigma : float, default 1.0
+        The number of standard deviations to use for the uncertainty interval. For a normal
+        distribution, 1 sigma is ~68.27%, 2 sigma is ~95.45%, etc.
+    **kwargs
+        Additional arguments passed to `format_value_with_uncertainty`.
+
+    Returns
+    -------
+    str
+        The formatted LaTeX string (e.g., '$5.0^{+1.2}_{-1.0}$' or '$5.0 \pm 1.1$').
+    """
+    import math
+
+    arr = np.asarray(arr)
+
+    if center_stat == "median":
+        center = float(np.nanmedian(arr))
+        # Fraction of data within +/- sigma for a normal distribution
+        prob = math.erf(sigma / math.sqrt(2))
+        p_lower = np.nanpercentile(arr, 50 * (1 - prob))
+        p_upper = np.nanpercentile(arr, 50 * (1 + prob))
+        return format_value_with_uncertainty(
+            center,
+            lower_uncertainty=float(center - p_lower),
+            upper_uncertainty=float(p_upper - center),
+            **kwargs,
+        )
+    elif center_stat == "mean":
+        center = float(np.nanmean(arr))
+        std_dev = float(np.nanstd(arr))
+        # For a mean/std combination, symmetric uncertainties are usually preferred
+        kwargs.setdefault("uncertainty_style", "pm")
+        return format_value_with_uncertainty(
+            center,
+            sigma * std_dev,
+            **kwargs,
+        )
+    else:
+        raise ValueError("center_stat must be 'median' or 'mean'")

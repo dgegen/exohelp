@@ -69,7 +69,7 @@ def surface_gravity(mass: QuantityLike, radius: QuantityLike) -> u.Quantity:
     return (const.G * mass / radius**2).to(u.m / u.s**2)  # type: ignore[attr-defined]
 
 
-def log_surface_gravity(mass: QuantityLike, radius: QuantityLike) -> np.ndarray:
+def log_surface_gravity(mass: QuantityLike, radius: QuantityLike) -> u.Quantity:
     """Compute the log₁₀ surface gravity of a body in cgs units.
 
     Parameters
@@ -87,8 +87,8 @@ def log_surface_gravity(mass: QuantityLike, radius: QuantityLike) -> np.ndarray:
     Examples
     --------
     >>> from exohelp import log_surface_gravity
-    >>> round(float(log_surface_gravity(1.0, 1.0)), 2)  # Earth: log10(~980 cm/s²)
+    >>> round(float(log_surface_gravity(1.0, 1.0).value), 2)  # Earth: log10(~980 cm/s²)
     2.99
     """
     g = surface_gravity(mass, radius).to(u.cm / u.s**2)
-    return np.log10(g.value)
+    return u.Dex(g)

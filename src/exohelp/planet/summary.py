@@ -316,15 +316,15 @@ def derived_planet_quantities(
         _g = surface_gravity(_m_planet, r_planet)
         _add(
             "surface_gravity",
-            _g.to("m/s^2"),
+            _g.to("cm/s^2"),
             "Surface gravity g = G M_p / R_p²",
             short_description="Surface gravity",
         )
         _add(
             "log_surface_gravity",
-            np.asarray(log_surface_gravity(_m_planet, r_planet)),
-            "Log surface gravity log10(g/[cm s^-2])",
-            short_description="Log surface gravity",
+            log_surface_gravity(_m_planet, r_planet),
+            "Log surface gravity log10([g/cm s^-2])",
+            short_description="Log surface gravity (cgs)",
         )
         _add(
             "hill_sphere",

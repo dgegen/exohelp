@@ -4,6 +4,7 @@ requires = ["uv_build>=0.11.2,<0.12"]
 
 [dependency-groups]
 archive = [
+  "gaiadr3-zeropoint>=0.1.0",
   "httpx>=0.28.1",
   "pandas>=2.3.3"
 ]
@@ -28,7 +29,8 @@ classifiers = [
 ]
 dependencies = [
   "astropy>=7.2.0",
-  "numpy>=2.0.0"
+  "numpy>=2.0.0",
+  "scipy>=1.17.1"
 ]
 description = "A collection of tools for exoplanetary and stellar astrophysics."
 keywords = ["astronomy", "astrophysics", "exoplanets", "stars", "planets"]
@@ -36,7 +38,7 @@ license = {text = "MIT"}
 name = "exohelp"
 readme = "README.md"
 requires-python = ">=3.11"
-version = '0.1.4'
+version = '0.1.5'
 
 [project.urls]
 "Bug Tracker" = "https://github.com/dgegen/exohelp/issues"
