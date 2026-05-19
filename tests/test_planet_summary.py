@@ -29,7 +29,7 @@ def test_planet_index_suffix_and_latex_names():
     )
 
 
-def test_log_surface_gravity_is_dimensionless():
+def test_log_surface_gravity_is_dex():
     table = derived_planet_quantities(
         period=3.0,
         r_planet=2.0,
@@ -39,7 +39,7 @@ def test_log_surface_gravity_is_dimensionless():
     )
 
     assert "log_surface_gravity" in table.colnames
-    assert table["log_surface_gravity"].unit is None  # type: ignore[assignment]
+    assert table["log_surface_gravity"].unit.to_string() == "dex(cm / s2)"
     assert np.isfinite(table["log_surface_gravity"][0])  # type: ignore[index]
 
 

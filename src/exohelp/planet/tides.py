@@ -307,8 +307,8 @@ def tidal_evolution(
     Examples
     --------
     >>> import astropy.units as u
-    >>> from exohelp.planet.tides import run_evolution
-    >>> solution = run_evolution(
+    >>> from exohelp.planet.tides import tidal_evolution
+    >>> solution = tidal_evolution(
     ...     a_init=0.1759 * u.AU, e_init=0.39,
     ...     m_star=1.045 * u.M_sun, r_star=1.235 * u.R_sun,
     ...     m_planet=17.6 * u.M_earth, r_planet=2.65 * u.R_earth,
