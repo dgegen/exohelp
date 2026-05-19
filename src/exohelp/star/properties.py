@@ -4,7 +4,36 @@ import numpy as np
 
 from ..type import QuantityLike
 
-__all__ = ["luminosity"]
+__all__ = ["kennedy_kenyon_snowline", "luminosity"]
+
+
+def kennedy_kenyon_snowline(m_star: QuantityLike, x: float = 2.0) -> u.Quantity:
+    """Calculates the snow line distance based on Kennedy & Kenyon (2008).
+
+    Reference: Kennedy & Kenyon (2008)
+    https://ui.adsabs.harvard.edu/abs/2008ApJ...673..502K/abstract
+
+    Parameters
+    ----------
+    m_star : QuantityLike
+        Stellar mass. Assumed to be in Solar masses if no unit is given.
+    x : float
+        Scaling exponent (usually between 1.5 and 2.0).
+        KK08 suggest x=2 for the early stages of disk evolution.
+
+    Returns
+    -------
+    a_snow : Quantity
+        Distance to the snow line in AU.
+
+    Examples
+    --------
+    >>> from exohelp.star.properties import kennedy_kenyon_snowline
+    >>> round(float(kennedy_kenyon_snowline(1.0).value), 2)
+    2.7
+    """
+    m_star = u.Quantity(m_star, "M_sun").value
+    return u.Quantity(2.7 * m_star**x, "au")
 
 
 def luminosity(teff: QuantityLike, r_star: QuantityLike = 1.0) -> u.Quantity:
