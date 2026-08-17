@@ -8,8 +8,9 @@ from .spectroscopy import (
     macroturbulent_velocity_doyle2014,
     rotation_period_from_vsini,
 )
-from .properties import luminosity
 from ..body import bulk_density
+from ..stats import truncated_normal
+from .properties import luminosity
 
 
 def derive_stellar_parameters(
@@ -56,11 +57,13 @@ def derive_stellar_parameters(
     """
     rng = np.random.default_rng(seed)
 
-    teff_s = u.Quantity(rng.normal(teff, teff_err, n_samples), "K")
-    logg_s = u.Quantity(rng.normal(logg, logg_err, n_samples), "dex(cm / s2)")
-    mass_s = u.Quantity(rng.normal(mass, mass_err, n_samples), "M_sun")
-    radius_s = u.Quantity(rng.normal(radius, radius_err, n_samples), "R_sun")
-    vsini_s = u.Quantity(rng.normal(vsini, vsini_err, n_samples), "km/s")
+    teff_s = u.Quantity(truncated_normal(teff, teff_err, n_samples, lower=0.0, rng=rng), "K")
+    logg_s = u.Dex(rng.normal(logg, logg_err, n_samples) * (u.cm / u.s**2))
+    mass_s = u.Quantity(truncated_normal(mass, mass_err, n_samples, lower=0.0, rng=rng), "M_sun")
+    radius_s = u.Quantity(
+        truncated_normal(radius, radius_err, n_samples, lower=0.0, rng=rng), "R_sun"
+    )
+    vsini_s = u.Quantity(truncated_normal(vsini, vsini_err, n_samples, lower=0.0, rng=rng), "km/s")
 
     luminosity_s = luminosity(teff_s, radius_s)
     density_s = bulk_density(mass_s, radius_s)

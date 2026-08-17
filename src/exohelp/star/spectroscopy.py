@@ -17,6 +17,7 @@ import astropy.units as u
 from astropy.coordinates import LSR, SkyCoord
 from astropy.table import QTable
 
+from ..stats import truncated_normal
 from ..type import QuantityLike
 
 
@@ -151,6 +152,8 @@ def macroturbulent_velocity_doyle2014(teff: QuantityLike, logg: QuantityLike) ->
     """
     if isinstance(teff, u.Quantity):
         teff = teff.to("K").value
+    if isinstance(logg, u.Quantity):
+        logg = logg.value
     t_diff = teff - 5777
     v_mac = 3.21 + (2.33e-3 * t_diff) + (2.0e-6 * t_diff**2) - (2.0 * (logg - 4.44))
     return u.Quantity(v_mac, "km / s")
@@ -239,7 +242,7 @@ def sample_v_mic_and_v_mac(
     if isinstance(logg_err, u.Quantity):
         logg_err = logg_err.to("dex").value
 
-    teff_s = rng.normal(teff, teff_err, n_samples)
+    teff_s = truncated_normal(teff, teff_err, n_samples, lower=0.0, rng=rng)
     logg_s = rng.normal(logg, logg_err, n_samples)
 
     v_mic_samples = microturbulent_velocity_bruntt2010(teff_s)
@@ -306,8 +309,8 @@ def sample_rotation_period_from_vsini(
     if isinstance(r_star_err, u.Quantity):
         r_star_err = r_star_err.to("R_sun").value
 
-    vsini_s = rng.normal(vsini, vsini_err, n_samples)
-    r_star_s = rng.normal(r_star, r_star_err, n_samples)
+    vsini_s = truncated_normal(vsini, vsini_err, n_samples, lower=0.0, rng=rng)
+    r_star_s = truncated_normal(r_star, r_star_err, n_samples, lower=0.0, rng=rng)
 
     max_rotation_period_samples = rotation_period_from_vsini(vsini_s, r_star_s, inclination_star)
 
@@ -385,8 +388,14 @@ def sample_uvw_lsr(
     radial_velocity_err = u.Quantity(radial_velocity_err, "km / s").value
 
     ra_s = u.Quantity(rng.normal(ra, ra_err, n_samples), "deg")
-    dec_s = u.Quantity(rng.normal(dec, dec_err, n_samples), "deg")
-    distance_s = u.Quantity(rng.normal(distance, distance_err, n_samples), "pc")
+    dec_s = u.Quantity(
+        truncated_normal(dec, dec_err, n_samples, lower=-90.0, upper=90.0, rng=rng),
+        "deg",
+    )
+    distance_s = u.Quantity(
+        truncated_normal(distance, distance_err, n_samples, lower=0.0, rng=rng),
+        "pc",
+    )
     pm_ra_cosdec_s = u.Quantity(rng.normal(pm_ra_cosdec, pm_ra_cosdec_err, n_samples), "mas / yr")
     pm_dec_s = u.Quantity(rng.normal(pm_dec, pm_dec_err, n_samples), "mas / yr")
     radial_velocity_s = u.Quantity(

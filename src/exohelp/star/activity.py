@@ -18,7 +18,8 @@ import astropy.units as u
 import numpy as np
 from astropy.table import QTable
 
-from ..type import QuantityLike, ArrayLike
+from ..stats import truncated_normal
+from ..type import ArrayLike, QuantityLike
 
 __all__ = ["sample_rotation_period_and_age"]
 
@@ -525,10 +526,10 @@ def sample_rotation_period_and_age(
 
     mag_bv_s = mag_b_s - mag_v_s
 
-    a = rng.normal(0.407, 0.021, n_samples)
-    b = rng.normal(0.325, 0.024, n_samples)
-    c = rng.normal(0.495, 0.010, n_samples)
-    n = rng.normal(0.566, 0.008, n_samples)
+    a = truncated_normal(0.407, 0.021, n_samples, lower=0.0, rng=rng)
+    b = truncated_normal(0.325, 0.024, n_samples, lower=0.0, rng=rng)
+    c = truncated_normal(0.495, 0.010, n_samples, lower=0.0, rng=rng)
+    n = truncated_normal(0.566, 0.008, n_samples, lower=0.0, rng=rng)
 
     tau_c_noyes_s = tau_c_noyes1984(mag_bv_s)
     tau_c_mittag_s = tau_c_mittag2018(mag_bv_s)
