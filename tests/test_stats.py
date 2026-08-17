@@ -120,8 +120,13 @@ def test_activity_sampling_positivity():
         n_samples=500,
         seed=42,
     )
-    # Check that rotation period and age columns are non-negative where valid
-    for col in ["prot_mamajek", "prot_noyes", "age_gyro_mamajek", "age_gyro_barnes"]:
+    for col in [
+        "prot_mamajek",
+        "prot_noyes",
+        "prot_suarez_mascareno",
+        "age_gyro_mamajek",
+        "age_gyro_barnes",
+    ]:
         valid = ~np.isnan(table[col].value)
         if np.any(valid):
             assert np.all(table[col][valid].value >= 0.0)

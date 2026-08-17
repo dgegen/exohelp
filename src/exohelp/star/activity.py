@@ -10,6 +10,8 @@ Sources:
   https://ui.adsabs.harvard.edu/abs/2008ApJ...687.1264M/abstract
 - Mittag et al. (2018), Astronomy & Astrophysics, Volume 618, id.A48, 12 pp.
   https://ui.adsabs.harvard.edu/abs/2018A%26A...618A..48M/abstract
+- Suárez Mascareño et al. (2015), MNRAS, 452, 2745-2756
+  https://ui.adsabs.harvard.edu/abs/2015MNRAS.452.2745S/abstract
 
 All functions are vectorized and unit-aware where appropriate.
 """
@@ -21,7 +23,53 @@ from astropy.table import QTable
 from ..stats import truncated_normal
 from ..type import ArrayLike, QuantityLike
 
-__all__ = ["sample_rotation_period_and_age"]
+__all__ = [
+    "sample_rotation_period_and_age",
+]
+
+"""Table 4 from Suárez Mascareño et al. (2015)."""
+SUAREZ_MASCARENO_2015_COEFFICIENTS: dict[str, dict[str, float | str]] = {
+    "full": {
+        "a": -0.808,
+        "sig_a": 0.012,
+        "b": -2.536,
+        "sig_b": 0.009,
+        "scatter": 0.17,
+        "description": "Full sample (scatter < 17%)",
+    },
+    "solar_feh": {
+        "a": -0.773,
+        "sig_a": 0.017,
+        "b": -2.347,
+        "sig_b": 0.002,
+        "scatter": 0.17,
+        "description": "Solar metallicity (-0.1 <= [Fe/H] <= +0.1)",
+    },
+    "subsolar_feh": {
+        "a": -0.821,
+        "sig_a": 0.025,
+        "b": -2.610,
+        "sig_b": 0.066,
+        "scatter": 0.17,
+        "description": "Subsolar metallicity ([Fe/H] < -0.1)",
+    },
+    "supersolar_feh": {
+        "a": -1.063,
+        "sig_a": 0.147,
+        "b": -3.817,
+        "sig_b": 0.640,
+        "scatter": 0.17,
+        "description": "Supersolar metallicity (+0.1 < [Fe/H] < +0.3)",
+    },
+    "m_dwarfs": {
+        "a": -0.753,
+        "sig_a": 0.056,
+        "b": -2.219,
+        "sig_b": 0.389,
+        "scatter": 0.17,
+        "description": "M dwarfs calibration",
+    },
+}
 
 
 def age_mamajek2008(log_rhk: ArrayLike, jitter: ArrayLike | None = None) -> u.Quantity:
@@ -470,6 +518,91 @@ def gyro_age_mamajek2008(
     return u.Quantity(age, "Gyr")
 
 
+def rotation_period_suarez_mascareno2015(
+    log_rhk: ArrayLike,
+    sample: str = "full",
+    return_components: bool = False,
+    category: str | None = None,
+) -> tuple[u.Quantity, ...] | tuple[u.Quantity, u.Quantity]:
+    """Calculate rotation period using empirical relation of Suárez Mascareño et al. (2015), Eq. (9).
+
+    log10(Prot) = a * log10(R'_HK) + b
+
+    Reference: Suárez Mascareño et al. (2015), MNRAS, 452, 2745-2756
+
+    Should primarily be used for G-, K- and M-dwarfs with high activity levels (log(R'_HK) > -5).
+
+    Parameters
+    ----------
+    log_rhk : float or array-like
+        Logarithm of chromospheric emission ratio log10(R'_HK).
+    sample : str, optional
+        Calibration sample to use (can also be passed as `category`):
+        - 'full': a = -0.808 +/- 0.012, b = -2.536 +/- 0.009 (default, scatter ~17%)
+        - 'solar_feh': a = -0.773 +/- 0.017, b = -2.347 +/- 0.002 (-0.1 <= [Fe/H] <= +0.1)
+        - 'subsolar_feh': a = -0.821 +/- 0.025, b = -2.610 +/- 0.066 ([Fe/H] < -0.1)
+        - 'supersolar_feh': a = -1.063 +/- 0.147, b = -3.817 +/- 0.640 (+0.1 < [Fe/H] < +0.3)
+        - 'm_dwarfs': a = -0.753 +/- 0.056, b = -2.219 +/- 0.389
+    return_components : bool, optional
+        If True, return (Prot, fit_uncertainty, intrinsic_scatter) as Quantities [day].
+        Otherwise return (Prot, total_uncertainty).
+    category : str, optional
+        Alias for `sample`.
+
+    Returns
+    -------
+    prot, prot_err : Quantity [day]
+        Predicted rotation period and 1-sigma uncertainty in days.
+
+    Examples
+    --------
+    >>> from exohelp.star.activity import rotation_period_suarez_mascareno2015
+    >>> prot, err = rotation_period_suarez_mascareno2015(-4.5)
+    >>> round(float(prot.value), 1)
+    12.6
+    """
+    if category is not None:
+        sample = category
+
+    if sample not in SUAREZ_MASCARENO_2015_COEFFICIENTS:
+        raise ValueError(
+            f"Unknown sample '{sample}'. Choose from {list(SUAREZ_MASCARENO_2015_COEFFICIENTS.keys())}"
+        )
+
+    params = SUAREZ_MASCARENO_2015_COEFFICIENTS[sample]
+    a = float(params["a"])
+    b = float(params["b"])
+    sig_a = float(params["sig_a"])
+    sig_b = float(params["sig_b"])
+    scatter_frac = float(params["scatter"])
+
+    log_rhk_arr = np.asarray(log_rhk, dtype=float)
+
+    log10_prot = a * log_rhk_arr + b
+    prot = 10**log10_prot
+
+    # Propagation of fit parameter uncertainty
+    sig_log10_prot = np.sqrt((log_rhk_arr * sig_a) ** 2 + sig_b**2)
+    sig_prot_fit = prot * np.log(10) * sig_log10_prot
+
+    # Intrinsic scatter reported in Suárez Mascareño et al. (2015)
+    sig_prot_scatter = scatter_frac * prot
+
+    # Combined total uncertainty
+    sig_prot_tot = np.hypot(sig_prot_fit, sig_prot_scatter)
+
+    if return_components:
+        return (
+            u.Quantity(prot, "day"),
+            u.Quantity(sig_prot_fit, "day"),
+            u.Quantity(sig_prot_scatter, "day"),
+        )
+    return u.Quantity(prot, "day"), u.Quantity(sig_prot_tot, "day")
+
+
+rotation_period_from_rhk_suarez_mascareno_2015 = rotation_period_suarez_mascareno2015
+
+
 def sample_rotation_period_and_age(
     log_rhk: float,
     log_rhk_err: float,
@@ -535,36 +668,69 @@ def sample_rotation_period_and_age(
     tau_c_mittag_s = tau_c_mittag2018(mag_bv_s)
     prot_mamajek_s = rotation_period_mamajek2008(log_rhk_s, tau_c_noyes_s)
     prot_noyes_s = rotation_period_noyes1984(log_rhk_s, tau_c_noyes_s)
+
+    sm_samples: dict[str, u.Quantity] = {}
+    for sample_name, params in SUAREZ_MASCARENO_2015_COEFFICIENTS.items():
+        a_s = rng.normal(float(params["a"]), float(params["sig_a"]), n_samples)
+        b_s = rng.normal(float(params["b"]), float(params["sig_b"]), n_samples)
+        prot_sm_mean = 10 ** (a_s * log_rhk_s + b_s)
+        scatter_std = float(params["scatter"]) * prot_sm_mean
+        sm_samples[f"prot_suarez_mascareno_{sample_name}"] = u.Quantity(
+            truncated_normal(prot_sm_mean, scatter_std, n_samples, lower=0.0, rng=rng),
+            "day",
+        )
+
+    prot_suarez_mascareno_s = sm_samples["prot_suarez_mascareno_full"]
+
     age_mamajek_s = gyro_age_mamajek2008(prot_mamajek_s, mag_bv_s, a=a, b=b, c=c, n=n)
     age_gyro_barnes_s = gyro_age_barnes2010(prot_mamajek_s, tau_c_mittag_s)
     age_chromospheric_s = age_mamajek2008(log_rhk_s, jitter=rng.normal(0, 1, n_samples))
 
-    table = QTable(
-        [
-            log_rhk_s,
-            mag_bv_s,
-            tau_c_noyes_s,
-            prot_mamajek_s,
-            prot_noyes_s,
-            age_mamajek_s,
-            age_gyro_barnes_s,
-            age_chromospheric_s,
-        ],
-        names=[
-            "log_rhk",
-            "mag_bv",
-            "tau_c_noyes",
-            "prot_mamajek",
-            "prot_noyes",
-            "age_gyro_mamajek",
-            "age_gyro_barnes",
-            "age_chromo_mamajek",
-        ],
-    )
+    table_data = [
+        log_rhk_s,
+        mag_bv_s,
+        tau_c_noyes_s,
+        prot_mamajek_s,
+        prot_noyes_s,
+        prot_suarez_mascareno_s,
+    ]
+    table_names = [
+        "log_rhk",
+        "mag_bv",
+        "tau_c_noyes",
+        "prot_mamajek",
+        "prot_noyes",
+        "prot_suarez_mascareno",
+    ]
+
+    for sample_name in SUAREZ_MASCARENO_2015_COEFFICIENTS:
+        col_name = f"prot_suarez_mascareno_{sample_name}"
+        table_data.append(sm_samples[col_name])
+        table_names.append(col_name)
+
+    table_data.extend([age_mamajek_s, age_gyro_barnes_s, age_chromospheric_s])
+    table_names.extend(["age_gyro_mamajek", "age_gyro_barnes", "age_chromo_mamajek"])
+
+    table = QTable(table_data, names=table_names)
+
     table[
         "prot_mamajek"
     ].description = "Rotation period via Rossby number (Mamajek & Hillenbrand 2008, Eqs. 5 & 7)"  # type: ignore
     table["prot_noyes"].description = "Rotation period via Noyes et al. (1984), Eq. 3"  # type: ignore
+    table[
+        "prot_suarez_mascareno"
+    ].description = (
+        "Rotation period via empirical relation (Suárez Mascareño et al. 2015, Eq. 9, full sample)"  # type: ignore
+    )
+
+    for sample_name, params in SUAREZ_MASCARENO_2015_COEFFICIENTS.items():
+        col_name = f"prot_suarez_mascareno_{sample_name}"
+        table[
+            col_name
+        ].description = (
+            f"Rotation period via Suárez Mascareño et al. (2015), Eq. 9 ({params['description']})"  # type: ignore
+        )
+
     table[
         "age_gyro_mamajek"
     ].description = "Gyrochronological age (Mamajek & Hillenbrand 2008, Eqs. 12-14)"  # type: ignore

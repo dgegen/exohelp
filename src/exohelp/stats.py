@@ -20,16 +20,16 @@ def truncated_normal(
     """
     Generate samples from a truncated normal distribution.
 
-    Supports both dimensionless numeric inputs and ``astropy.units.Quantity`` objects.
+    Supports scalar and array inputs, as well as ``astropy.units.Quantity`` objects.
     If units are provided, all boundary quantities are converted to the mean's unit
     and the returned samples will carry that unit.
 
     Parameters
     ----------
     mean : QuantityLike
-        Mean of the unclipped normal distribution.
+        Mean of the unclipped normal distribution (scalar or array).
     std : QuantityLike
-        Standard deviation of the unclipped normal distribution.
+        Standard deviation of the unclipped normal distribution (scalar or array).
     size : int or tuple of ints
         Output shape of the samples.
     lower : QuantityLike, optional
@@ -55,35 +55,37 @@ def truncated_normal(
     unit = None
     if isinstance(mean, u.Quantity):
         unit = mean.unit
-        mean_val = float(mean.value)
-        std_val = float(std.to_value(unit) if isinstance(std, u.Quantity) else std)
-        lower_val = float(lower.to_value(unit)) if isinstance(lower, u.Quantity) else float(lower)
-        upper_val = float(upper.to_value(unit)) if isinstance(upper, u.Quantity) else float(upper)
+        mean_val = np.asanyarray(mean.value)
+        std_val = np.asanyarray(std.to_value(unit) if isinstance(std, u.Quantity) else std)
+        lower_val = np.asanyarray(lower.to_value(unit) if isinstance(lower, u.Quantity) else lower)
+        upper_val = np.asanyarray(upper.to_value(unit) if isinstance(upper, u.Quantity) else upper)
     else:
-        mean_val = float(mean)
         if isinstance(std, u.Quantity):
             unit = std.unit
-            std_val = float(std.value)
-        else:
-            std_val = float(std)
-
-        lower_val = (
-            float(lower.to_value(unit))
+        mean_val = np.asanyarray(mean)
+        std_val = np.asanyarray(
+            std.to_value(unit)
+            if isinstance(std, u.Quantity) and unit is not None
+            else (std.value if isinstance(std, u.Quantity) else std)
+        )
+        lower_val = np.asanyarray(
+            lower.to_value(unit)
             if isinstance(lower, u.Quantity) and unit is not None
-            else (float(lower.value) if isinstance(lower, u.Quantity) else float(lower))
+            else (lower.value if isinstance(lower, u.Quantity) else lower)
         )
-        upper_val = (
-            float(upper.to_value(unit))
+        upper_val = np.asanyarray(
+            upper.to_value(unit)
             if isinstance(upper, u.Quantity) and unit is not None
-            else (float(upper.value) if isinstance(upper, u.Quantity) else float(upper))
+            else (upper.value if isinstance(upper, u.Quantity) else upper)
         )
 
-    if std_val == 0.0:
-        res = np.full(size, mean_val)
-    else:
-        a = (lower_val - mean_val) / std_val
-        b = (upper_val - mean_val) / std_val
-        res = truncnorm.rvs(a, b, loc=mean_val, scale=std_val, size=size, random_state=rng)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        safe_std = np.where(std_val == 0.0, 1.0, std_val)
+        a = (lower_val - mean_val) / safe_std
+        b = (upper_val - mean_val) / safe_std
+        res = truncnorm.rvs(a, b, loc=mean_val, scale=safe_std, size=size, random_state=rng)
+        if np.any(std_val == 0.0):
+            res = np.where(std_val == 0.0, mean_val, res)
 
     if unit is not None:
         return u.Quantity(res, unit)
