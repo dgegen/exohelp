@@ -1,3 +1,4 @@
+import contextlib
 import json
 import logging
 from pathlib import Path
@@ -12,7 +13,12 @@ from astroquery.ipac.nexsci.nasa_exoplanet_archive import NasaExoplanetArchive
 from astroquery.mast import Catalogs
 from astroquery.vizier import Vizier
 
-from exohelp.formatting import format_number, format_value_with_uncertainty
+from exohelp.formatting import (
+    DEFAULT_TABLEBIB,
+    format_unit_aa,
+    generate_stellar_table_latex,
+    save_stellar_table_latex,
+)
 from exohelp.star.spectroscopy import sample_uvw_lsr
 
 logger = logging.getLogger("stellar_loader")
@@ -88,6 +94,77 @@ class StarLoader:
             },
         },
     }
+
+    DEFAULT_TABLEBIB: ClassVar[dict[str, str]] = DEFAULT_TABLEBIB
+
+    @staticmethod
+    def get_default_bibtex() -> str:
+        """Return the default BibTeX entries for standard catalog references."""
+        from exohelp.data import get_default_bibtex
+
+        return get_default_bibtex()
+
+    @staticmethod
+    def estimate_spectral_type(teff: float) -> str:
+        """Estimate main-sequence spectral type from effective temperature (K)."""
+        if teff is None or np.isnan(teff):
+            return ""
+        if teff >= 30000:
+            return r"O\,V"
+        elif teff >= 10000:
+            return r"B\,V"
+        elif teff >= 7500:
+            return r"A\,V"
+        elif teff >= 6000:
+            return r"F\,V"
+        elif teff >= 5200:
+            if teff >= 5900:
+                return r"G0\,V"
+            elif teff >= 5800:
+                return r"G2\,V"
+            elif teff >= 5600:
+                return r"G5\,V"
+            else:
+                return r"G8\,V"
+        elif teff >= 3700:
+            if teff >= 5100:
+                return r"K0\,V"
+            elif teff >= 4800:
+                return r"K2\,V"
+            elif teff >= 4400:
+                return r"K5\,V"
+            else:
+                return r"K7\,V"
+        elif teff >= 2400:
+            return r"M\,V"
+        return ""
+
+    @staticmethod
+    def get_spectral_type(query_results=None, teff: float | None = None) -> str:
+        """Query or estimate spectral type from catalog query results or Teff."""
+        if query_results is not None:
+            if isinstance(query_results, astropy.table.Table):
+                for col in ("SpType", "Sp", "spectral_type", "sp_type"):
+                    if col in query_results.colnames and query_results[col][0]:
+                        sp = str(query_results[col][0]).strip()
+                        if sp and sp.lower() not in ("nan", "--", "none"):
+                            return sp.replace(" ", r"\,")
+            elif isinstance(query_results, dict):
+                for col in ("SpType", "Sp", "spectral_type", "sp_type", "Teff"):
+                    val = query_results.get(col)
+                    if (
+                        val is not None
+                        and str(val).strip()
+                        and str(val).lower() not in ("nan", "--", "none")
+                    ):
+                        if col == "Teff" and teff is None:
+                            with contextlib.suppress(ValueError, TypeError):
+                                teff = float(val)
+                        elif col != "Teff":
+                            return str(val).strip().replace(" ", r"\,")
+        if teff is not None:
+            return StarLoader.estimate_spectral_type(teff)
+        return ""
 
     def __init__(
         self,
@@ -403,6 +480,16 @@ class StarLoader:
         else:
             sources.extend(["", "", "", "", ""])
 
+        if spectral_type is None:
+            teff_val = tic_result.get("Teff") if hasattr(tic_result, "get") else None
+            try:
+                teff_num = float(teff_val) if teff_val is not None else None
+            except Exception:
+                teff_num = None
+            sp_est = self.get_spectral_type(tic_result, teff=teff_num)
+            if sp_est:
+                spectral_type = sp_est
+
         if spectral_type is not None:
             names.append("spectral_type")
             symbols.append("Spectral type")
@@ -445,7 +532,8 @@ class StarLoader:
 
         return res
 
-    def _calculate_distance_from_parallax(self, plx, e_plx):
+    @staticmethod
+    def _calculate_distance_from_parallax(plx, e_plx):
         try:
             plx_val = float(plx)
             if np.isnan(plx_val) or plx_val <= 0:
@@ -471,7 +559,8 @@ class StarLoader:
             "source": "This work",
         }
 
-    def _correct_parallax(self, gaia_row):
+    @staticmethod
+    def _correct_parallax(gaia_row):
         """Applies parallax zero-point correction based on Gaia EDR3 / DR3."""
         try:
             from zero_point import zpt
@@ -526,8 +615,8 @@ class StarLoader:
             "source": "Gaia DR3; Lin21",
         }
 
+    @staticmethod
     def add_uvw(
-        self,
         df: pd.DataFrame,
         n_samples: int = 1_000_000,
         seed: int | None = None,
@@ -620,8 +709,8 @@ class StarLoader:
 
         return pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
 
+    @staticmethod
     def add_galactic_population(
-        self,
         df: pd.DataFrame,
         population: str = "Thin disc",
         source: str = "This work",
@@ -637,9 +726,8 @@ class StarLoader:
         }
         return pd.concat([df, pd.DataFrame([row])], ignore_index=True)
 
-    @classmethod
+    @staticmethod
     def save_system_data(
-        cls,
         filepath: str | Path,
         id_df: pd.DataFrame,
         param_df: pd.DataFrame,
@@ -668,8 +756,8 @@ class StarLoader:
                 json.dump(payload, f, indent=2, default=str)
         return path
 
-    @classmethod
-    def load_system_data(cls, filepath: str | Path) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+    @staticmethod
+    def load_system_data(filepath: str | Path) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
         """Load saved identifier and parameter tables from a JSON or CSV file."""
         path = Path(filepath)
         if not path.exists():
@@ -692,306 +780,9 @@ class StarLoader:
 
         return id_df, param_df, metadata
 
-    @staticmethod
-    def _format_unit_aa(unit_raw: str) -> str:
-        """Standardize Astropy/raw unit string into clean A&A LaTeX notation."""
-        if not unit_raw or unit_raw.strip() == "":
-            return ""
-
-        u_str = unit_raw.strip().replace(" ", "")
-        mapping = {
-            "mas": r"\mathrm{mas}",
-            "pc": r"\mathrm{pc}",
-            "km/s": r"\mathrm{km\,s^{-1}}",
-            "m/s": r"\mathrm{m\,s^{-1}}",
-            "mas/yr": r"\mathrm{mas\,a^{-1}}",
-            "mas/a": r"\mathrm{mas\,a^{-1}}",
-            "mag": r"\mathrm{mag}",
-            "K": r"\mathrm{K}",
-            "deg": r"\mathrm{deg}",
-            "dex": r"\mathrm{dex}",
-            "cgs": r"\mathrm{cgs}",
-            "g/cm3": r"\mathrm{g\,cm^{-3}}",
-            "g/cm^3": r"\mathrm{g\,cm^{-3}}",
-            "Rsun": r"R_\odot",
-            "R_sun": r"R_\odot",
-            "Msun": r"M_\odot",
-            "M_sun": r"M_\odot",
-            "Lsun": r"L_\odot",
-            "L_sun": r"L_\odot",
-            "d": r"\mathrm{d}",
-            "day": r"\mathrm{d}",
-            "days": r"\mathrm{d}",
-            "Gyr": r"\mathrm{Gyr}",
-            "Myr": r"\mathrm{Myr}",
-            "yr": r"\mathrm{a}",
-        }
-
-        if u_str in mapping:
-            return mapping[u_str]
-        try:
-            formatted = u.Unit(unit_raw).to_string("latex_inline").replace("$", "")
-            return formatted
-        except Exception:
-            return unit_raw
-
-    @classmethod
-    def generate_stellar_table_latex(
-        cls,
-        star_name: str,
-        id_df: pd.DataFrame,
-        param_df: pd.DataFrame,
-        significant_digits: int = 2,
-        adaptive_sigfigs: bool = False,
-        units_in_parameter: bool = True,
-        unit_brackets: str = "round",
-        section_hlines: bool = True,
-        noalign_smallskip: bool = False,
-        reference_style: str = "survey",
-        custom_references: dict[str, str] | None = None,
-        caption: str | None = None,
-        label: str = "tab:stellar_properties",
-        tablefoot_notes: dict[str, str] | list[str] | str | None = None,
-    ) -> str:
-        """Generate a publication-ready single continuous 3-column A&A stellar table."""
-        latex = []
-
-        # 1. Float & Caption
-        latex.append(r"\begin{table}[!ht]")
-        tab_caption = caption if caption is not None else f"Stellar parameters of {star_name}."
-        latex.append(f"    \\caption{{{tab_caption}}}")
-        latex.append(f"    \\label{{{label}}}")
-        latex.append(r"    \centering")
-        latex.append(r"    \begin{tabular}{l c r}")
-        latex.append(r"    \hline\hline")
-        if noalign_smallskip:
-            latex.append(r"    \noalign{\smallskip}")
-        latex.append(r"    Parameter & Value & Reference \\")
-        if noalign_smallskip:
-            latex.append(r"    \noalign{\smallskip}")
-        if not section_hlines:
-            latex.append(r"    \hline")
-
-        # 2. Categorization by machine-readable names with deterministic ordering
-        identifier_keys = [
-            "star_name",
-            "toi",
-            "tic",
-            "tyc",
-            "gaia_dr3",
-            "twomass",
-            "allwise",
-            "spectral_type",
-        ]
-
-        astrometric_keys = [
-            "ra",
-            "dec",
-            "pm_ra",
-            "pm_dec",
-            "radial_velocity",
-            "parallax",
-            "distance",
-            "u_lsr",
-            "v_lsr",
-            "w_lsr",
-            "galactic_population",
-        ]
-
-        # Mission/Survey Order: Gaia -> Tycho -> TESS -> 2MASS -> WISE
-        photometric_keys = [
-            "g_mag",
-            "bp_mag",
-            "rp_mag",
-            "bt_mag",
-            "vt_mag",
-            "tess_mag",
-            "j_mag",
-            "h_mag",
-            "ks_mag",
-            "w1_mag",
-            "w2_mag",
-            "w3_mag",
-            "w4_mag",
-        ]
-
-        def _sort_by_keys(df_subset, key_order):
-            if df_subset is None or df_subset.empty:
-                return df_subset
-            order_dict = {k: i for i, k in enumerate(key_order)}
-            ranks = df_subset["name"].map(lambda x: order_dict.get(x, 999))
-            return df_subset.iloc[np.argsort(ranks, kind="stable")]
-
-        id_subset = _sort_by_keys(id_df, identifier_keys)
-        astrometric_subset = _sort_by_keys(
-            param_df[param_df["name"].isin(astrometric_keys)], astrometric_keys
-        )
-        photo_raw = param_df[
-            param_df["name"].isin(photometric_keys)
-            | (
-                ~param_df["name"].isin(astrometric_keys)
-                & param_df["unit"].astype(str).str.contains("mag")
-            )
-        ]
-        photo_subset = _sort_by_keys(photo_raw, photometric_keys)
-
-        sections = [
-            ("Basic identifiers and data", id_subset),
-            ("Astrometric properties", astrometric_subset),
-            ("Photometric properties", photo_subset),
-        ]
-
-        # Remaining parameters (Fundamental parameters / Activity)
-        used_keys = set(id_df["name"]).union(astrometric_keys).union(photometric_keys)
-        remaining = param_df[~param_df["name"].isin(used_keys)]
-        if not remaining.empty:
-            sections.append(("Fundamental parameters", remaining))
-
-        open_b = "[" if unit_brackets in ("square", "[]") else "("
-        close_b = "]" if unit_brackets in ("square", "[]") else ")"
-
-        author_to_survey = {
-            "Skr06": "2MASS",
-            "Cut13": "ALLWISE",
-            "Høg00": "Tycho-2",
-            "Sta19": "TIC",
-            "Gai23": "Gaia DR3",
-        }
-        survey_to_author = {
-            "2MASS": "Skr06",
-            "ALLWISE": "Cut13",
-            "WISE": "Cut13",
-            "Tycho-2": "Høg00",
-            "Tycho": "Høg00",
-            "TIC": "Sta19",
-        }
-
-        for section_title, subset in sections:
-            if subset is None or subset.empty:
-                continue
-
-            if section_hlines:
-                latex.append(r"    \hline")
-                if noalign_smallskip:
-                    latex.append(r"    \noalign{\smallskip}")
-                latex.append(f"    \\multicolumn{{3}}{{c}}{{\\textit{{{section_title}}}}} \\\\")
-                if noalign_smallskip:
-                    latex.append(r"    \noalign{\smallskip}")
-                latex.append(r"    \hline")
-            else:
-                if noalign_smallskip:
-                    latex.append(r"    \noalign{\smallskip}")
-                latex.append(f"    \\multicolumn{{3}}{{l}}{{\\textit{{{section_title}}}}} \\\\")
-                if noalign_smallskip:
-                    latex.append(r"    \noalign{\smallskip}")
-
-            for _, row in subset.iterrows():
-                p_sym = str(row["symbol"])
-                p_tex = p_sym if "$" in p_sym else p_sym.replace("_", r"\_")
-
-                v_raw = row["value"]
-                e_raw = row["uncertainty"]
-
-                val = (
-                    np.ravel(v_raw)[0]
-                    if hasattr(v_raw, "__iter__") and np.size(v_raw) > 0
-                    else v_raw
-                )
-                err = (
-                    np.ravel(e_raw)[0]
-                    if hasattr(e_raw, "__iter__") and np.size(e_raw) > 0
-                    else e_raw
-                )
-
-                # Check if numerical
-                try:
-                    v_num = float(val)
-                    is_num = not np.isnan(v_num)
-                    try:
-                        e_num = float(err)
-                        has_err = not np.isnan(e_num) and e_num != 0
-                    except (ValueError, TypeError):
-                        has_err = False
-                except (ValueError, TypeError):
-                    is_num = False
-                    has_err = False
-
-                if section_title == "Basic identifiers and data":
-                    val_str = str(val).replace("_", r"\_")
-                elif is_num:
-                    if has_err:
-                        val_str = format_value_with_uncertainty(
-                            v_num,
-                            e_num,
-                            uncertainty_style="pm",
-                            adaptive_sigfigs=adaptive_sigfigs,
-                            significant_digits=significant_digits,
-                        )
-                    else:
-                        val_str = f"${format_number(v_num, significant_digits=significant_digits)}$"
-                else:
-                    val_str = str(val).replace("_", r"\_")
-
-                unit_raw = str(row.get("unit", ""))
-                unit_fmt = cls._format_unit_aa(unit_raw)
-
-                source_raw = str(row.get("source", ""))
-                if reference_style == "survey":
-                    source_mapped = author_to_survey.get(source_raw, source_raw)
-                    # Omit self-referential catalog references in the identifiers section
-                    if section_title == "Basic identifiers and data" and source_mapped in (
-                        "TIC",
-                        "Tycho-2",
-                        "Tycho",
-                        "Gaia DR3",
-                        "Gaia EDR3",
-                        "2MASS",
-                        "ALLWISE",
-                        "WISE",
-                        p_sym,
-                    ):
-                        source_mapped = ""
-                elif reference_style == "author":
-                    source_mapped = survey_to_author.get(source_raw, source_raw)
-                else:
-                    source_mapped = source_raw
-
-                if custom_references and source_mapped in custom_references:
-                    source_mapped = custom_references[source_mapped]
-
-                source = source_mapped.replace("_", r"\_")
-
-                if units_in_parameter and unit_fmt:
-                    if p_tex.startswith("$") and p_tex.endswith("$"):
-                        inner = p_tex[1:-1].strip()
-                        p_col = rf"${inner}\ {open_b}{unit_fmt}{close_b}$"
-                    else:
-                        p_col = rf"{p_tex}~${open_b}{unit_fmt}{close_b}$"
-                else:
-                    p_col = p_tex
-
-                latex.append(f"    {p_col} & {val_str} & {source} \\\\")
-
-        if noalign_smallskip:
-            latex.append(r"    \noalign{\smallskip}")
-        latex.append(r"    \hline")
-        latex.append(r"    \end{tabular}")
-
-        # 3. Tablefoot
-        if tablefoot_notes:
-            latex.append(r"    \tablefoot{")
-            if isinstance(tablefoot_notes, dict):
-                for k, v in tablefoot_notes.items():
-                    latex.append(f"        \\tablefoottext{{{k}}}{{{v}}};")
-            elif isinstance(tablefoot_notes, list):
-                for note in tablefoot_notes:
-                    latex.append(f"        {note}")
-            elif isinstance(tablefoot_notes, str):
-                latex.append(f"        {tablefoot_notes}")
-            latex.append(r"    }")
-
-        latex.append(r"\end{table}")
-        return "\n".join(latex)
+    _format_unit_aa = staticmethod(format_unit_aa)
+    generate_stellar_table_latex = staticmethod(generate_stellar_table_latex)
+    save_stellar_table_latex = staticmethod(save_stellar_table_latex)
 
     @staticmethod
     def _normalize_tyc(tid):

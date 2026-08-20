@@ -209,3 +209,74 @@ class TestFormatValueWithUncertainty:
             )
             == r"$0.57^{+0.06}_{-0.06}$"
         )
+
+
+def test_format_unit_aa():
+    from exohelp.formatting import format_unit_aa
+
+    assert format_unit_aa("mas/yr") == r"\mathrm{mas\,a^{-1}}"
+    assert format_unit_aa("km/s") == r"\mathrm{km\,s^{-1}}"
+    assert format_unit_aa("Rsun") == r"\mathrm{R}_\odot"
+    assert format_unit_aa("") == ""
+
+
+def test_generate_stellar_table_latex_direct():
+    import pandas as pd
+    from exohelp.formatting import generate_stellar_table_latex
+
+    id_df = pd.DataFrame([{"symbol": "Name", "value": "HD 12345", "unit": "", "source": ""}])
+    param_df = pd.DataFrame(
+        [
+            {
+                "name": "parallax",
+                "symbol": r"$\varpi$",
+                "value": 10.0,
+                "uncertainty": 0.1,
+                "unit": "mas",
+                "source": "Gaia DR3",
+            }
+        ]
+    )
+    latex = generate_stellar_table_latex("HD 12345", id_df, param_df)
+    assert r"\begin{table}[!ht]" in latex
+    assert "HD 12345" in latex
+    assert r"\textit{Gaia} DR3: \citet{GaiaCollaboration2023}" in latex
+
+
+def test_tablebib_no_false_substring_matches():
+    import pandas as pd
+    from exohelp.formatting import generate_stellar_table_latex
+
+    id_df = pd.DataFrame([{"symbol": "Name", "value": "HD 12345", "unit": "", "source": ""}])
+    param_df = pd.DataFrame(
+        [
+            # 'T' or 'G' or 'Synthetic' should NOT match TIC or Gaia or Tycho
+            {
+                "name": "param1",
+                "symbol": "P1",
+                "value": 1.0,
+                "uncertainty": 0.1,
+                "unit": "",
+                "source": "T",
+            },
+            {
+                "name": "param2",
+                "symbol": "P2",
+                "value": 2.0,
+                "uncertainty": 0.2,
+                "unit": "",
+                "source": "Synthetic",
+            },
+            {
+                "name": "param3",
+                "symbol": "P3",
+                "value": 3.0,
+                "uncertainty": 0.3,
+                "unit": "",
+                "source": "This work",
+            },
+        ]
+    )
+    latex = generate_stellar_table_latex("HD 12345", id_df, param_df)
+    # Since neither 'T', 'Synthetic', nor 'This work' are valid bib keys, tablebib should not be added
+    assert r"\tablebib" not in latex
