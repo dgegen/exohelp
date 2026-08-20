@@ -434,8 +434,9 @@ class StarLoader:
 
         if toi_str is None and tic_id:
             try:
+                clean_tic = tic_id.replace("TIC", "").strip()
                 toi_data = NasaExoplanetArchive.query_criteria(
-                    table="toi", where=f"tic_id={tic_id}"
+                    table="toi", where=f"tid={clean_tic}"
                 )
                 if len(toi_data) > 0 and "toipfx" in toi_data.colnames:
                     pfx = toi_data["toipfx"][0]
