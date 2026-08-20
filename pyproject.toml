@@ -16,6 +16,7 @@ dev = [
   "ruff>=0.14.11"
 ]
 test = [
+  {include-group = "archive"},
   "pandas>=2.0",
   "pytest>=9.0.2"
 ]
