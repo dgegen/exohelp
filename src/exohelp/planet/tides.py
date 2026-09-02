@@ -6,6 +6,8 @@ from astropy import units as u
 from astropy.table import Table
 from scipy.integrate import solve_ivp
 
+from ..citations import cites
+
 __all__ = [
     "roche_limit",
     "tau_a",
@@ -15,6 +17,7 @@ __all__ = [
 ]
 
 
+@cites("Jackson2009", note="Eq. 1, including the e² correction from stellar tides")
 def tau_a(a, e, m_star, r_star, m_planet, r_planet, q_planet_prime, q_star_prime):
     """Compute the fractional rate of change of the semi-major axis due to tidal dissipation.
 
@@ -72,6 +75,7 @@ def tau_a(a, e, m_star, r_star, m_planet, r_planet, q_planet_prime, q_star_prime
     return da_dt.decompose().to("1 / Gyr")
 
 
+@cites("Jackson2009", note="Eq. 2, corrected stellar tide coefficient 171/16")
 def tau_e(a, e, m_star, r_star, m_planet, r_planet, q_planet_prime, q_star_prime):
     """Compute the fractional rate of change of eccentricity due to tidal dissipation.
 
@@ -122,6 +126,7 @@ def tau_e(a, e, m_star, r_star, m_planet, r_planet, q_planet_prime, q_star_prime
     return de_dt.decompose().to("1 / Gyr")
 
 
+@cites("Jackson2008", note="Eq. 4, neglecting stellar tides")
 def tau_circ(a, m_star, m_planet, r_planet, q_planet_prime):
     """Compute the circularization timescale assuming constant semi-major axis.
 
@@ -220,7 +225,8 @@ def roche_limit(m_star, m_planet, r_planet):
 
     References
     ----------
-    Jackson, B., et al. (2016).
+    Jackson, B., et al. (2016). [Exact article undetermined; not yet in
+    ``exohelp.citations.REFERENCES`` — do not `@cites` this function until confirmed.]
     """
     r_planet = u.Quantity(r_planet, "R_earth") if not isinstance(r_planet, u.Quantity) else r_planet
     m_star = u.Quantity(m_star, "M_sun") if not isinstance(m_star, u.Quantity) else m_star
@@ -248,6 +254,7 @@ def _reached_stellar_surface(
 _reached_stellar_surface.terminal = True
 
 
+@cites("Jackson2008", "Jackson2009")
 def tidal_evolution(
     a_init,
     e_init,
@@ -350,6 +357,7 @@ def tidal_evolution(
         "q_planet_prime": q_planet_prime,
         "q_star_prime": q_star_prime,
         "roche_limit": roche_limit(m_star, m_planet, r_planet),
+        "references": ["Jackson2008", "Jackson2009"],
     }
     solution_table.meta.update({k: v for k, v in solution.items() if k not in ["t", "y"]})
 

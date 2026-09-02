@@ -180,6 +180,8 @@ df = loader.load()  # fetches from NASA Exoplanet Archive, caches locally
 - **Vectorized:** All functions accept numpy arrays and `astropy.Quantity` arrays.
 - **Masked arrays:** Functions with validity ranges (e.g., chromospheric age) return `numpy.ma` masked arrays rather than raising errors.
 - **Monte Carlo functions:** Return `astropy.table.QTable` with column descriptions citing source equations.
+- **Citations:** Every function implementing a published relation carries machine-readable
+  provenance via `exohelp.cite()` — see [Getting the citations for your paper](#getting-the-citations-for-your-paper).
 
 ## Development
 
@@ -190,6 +192,37 @@ pre-commit install
 pytest                        # run tests
 pre-commit run --all-files    # lint and format
 ```
+
+## Getting the citations for your paper
+
+Every relation `exohelp` implements (TSM, gyrochronological age, mass-loss rates, ...) traces
+back to a published paper. `exohelp.cite()` gets you from a computed result to exactly the
+citations that justify it, and `exohelp.citation_tracker()` gets you the full reading list for
+a whole analysis:
+
+```python
+import exohelp
+
+table = exohelp.planet.derived_planet_quantities(
+    period=3.0, r_planet=2.0, r_star=0.8, m_star=0.8, teff_star=4500,
+    m_planet=8.0, j_mag=8.5,
+)
+
+exohelp.cite(table["tsm"])       # -> [Reference(key='Kempton2018', ...)]
+exohelp.citet(table["tsm"])      # -> r'\citet{Kempton2018}'
+exohelp.bibtex(table)            # BibTeX for every reference behind the whole table
+
+# Or track everything used across a longer analysis:
+with exohelp.citation_tracker() as tracker:
+    ages = exohelp.star.sample_rotation_period_and_age(
+        log_rhk=-4.9, log_rhk_err=0.1, mag_b=9.9, mag_b_err=0.03, mag_v=9.3, mag_v_err=0.02,
+    )
+tracker.write_bib("refs.bib")    # only the papers actually used
+```
+
+A `Reference` carries `key`, `label`, `bibcode`, `doi`, `adsurl`, and `doi_url`. Every entry
+resolves to the bundled `src/exohelp/data/references.bib`, so `exohelp.bibtex(...)` output
+compiles directly in a manuscript.
 
 ## Citation
 

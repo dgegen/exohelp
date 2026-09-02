@@ -20,6 +20,7 @@ import astropy.units as u
 import numpy as np
 from astropy.table import QTable
 
+from ..citations import cites
 from ..stats import truncated_normal
 from ..type import ArrayLike, QuantityLike
 
@@ -27,7 +28,7 @@ __all__ = [
     "sample_rotation_period_and_age",
 ]
 
-"""Table 4 from Suárez Mascareño et al. (2015)."""
+# Table 4 from Suárez Mascareño et al. (2015); see citations.REFERENCES["SuarezMascareno2015"].
 SUAREZ_MASCARENO_2015_COEFFICIENTS: dict[str, dict[str, float | str]] = {
     "full": {
         "a": -0.808,
@@ -72,6 +73,7 @@ SUAREZ_MASCARENO_2015_COEFFICIENTS: dict[str, dict[str, float | str]] = {
 }
 
 
+@cites("MamajekHillenbrand2008", note="Eq. 3")
 def age_mamajek2008(log_rhk: ArrayLike, jitter: ArrayLike | None = None) -> u.Quantity:
     """
     Chromospheric age from log R'_HK.
@@ -130,6 +132,7 @@ def age_mamajek2008(log_rhk: ArrayLike, jitter: ArrayLike | None = None) -> u.Qu
     return age
 
 
+@cites("MamajekHillenbrand2008", note="Eq. 4")
 def log_rhk_from_age_mamajek2008(age: QuantityLike) -> np.ndarray:
     """
     Inverse chromospheric relation: log R'_HK from age.
@@ -170,6 +173,7 @@ def log_rhk_from_age_mamajek2008(age: QuantityLike) -> np.ndarray:
     return np.where(valid_mask, log_rhk, np.nan)
 
 
+@cites("Noyes1984", note="Eq. 4")
 def tau_c_noyes1984(bv: ArrayLike) -> u.Quantity:
     """
     Local convective turnover time from B-V color.
@@ -206,6 +210,7 @@ def tau_c_noyes1984(bv: ArrayLike) -> u.Quantity:
     return u.Quantity(10**log10_tau_c, "day")
 
 
+@cites("Mittag2018", note="Eqs. 11 & 12")
 def tau_c_mittag2018(bv: ArrayLike) -> u.Quantity:
     """
     Global convective turnover time from B-V color.
@@ -255,6 +260,7 @@ def tau_c_mittag2018(bv: ArrayLike) -> u.Quantity:
     return u.Quantity(tau_c, "day")
 
 
+@cites("Mittag2018", note="Eqs. 9 & 10")
 def rotation_period_mittag2018(
     rhk_plus: ArrayLike, bv: ArrayLike, slope: float = 0.15
 ) -> u.Quantity:
@@ -287,6 +293,11 @@ def rotation_period_mittag2018(
     return u.Quantity(10**log_p, "day")
 
 
+@cites(
+    "Barnes2010",
+    "Mittag2018",
+    note="Barnes (2010) coefficients as tabulated in Mittag et al. (2018), Eq. 13",
+)
 def gyro_age_barnes2010(prot: QuantityLike, tau_c: QuantityLike) -> u.Quantity:
     """
     Calculates stellar age from rotation period and global convective turnover time.
@@ -331,6 +342,7 @@ def gyro_age_barnes2010(prot: QuantityLike, tau_c: QuantityLike) -> u.Quantity:
     return age_myr.to("Gyr")
 
 
+@cites("Noyes1984", note="Eq. 3")
 def rotation_period_noyes1984(log_rhk: ArrayLike, tau_c: QuantityLike) -> u.Quantity:
     """
     Rotation period from log R'_HK and local convective turnover time.
@@ -372,6 +384,7 @@ def rotation_period_noyes1984(log_rhk: ArrayLike, tau_c: QuantityLike) -> u.Quan
     return prot
 
 
+@cites("MamajekHillenbrand2008", note="Eqs. 5 & 7")
 def rossby_number_mamajek2008(log_rhk: ArrayLike) -> np.ndarray:
     """
     Rossby number (Ro = P / tau_c) from log R'_HK.
@@ -417,6 +430,7 @@ def rossby_number_mamajek2008(log_rhk: ArrayLike) -> np.ndarray:
     return rossby_number
 
 
+@cites("MamajekHillenbrand2008", note="Eqs. 5 & 7")
 def rotation_period_mamajek2008(log_rhk: ArrayLike, tau_c: u.Quantity) -> u.Quantity:
     """
     Rotation period from Rossby number and convective turnover time.
@@ -455,6 +469,7 @@ def rotation_period_mamajek2008(log_rhk: ArrayLike, tau_c: u.Quantity) -> u.Quan
     return prot
 
 
+@cites("MamajekHillenbrand2008", note="Eqs. 12-14")
 def gyro_age_mamajek2008(
     prot: QuantityLike,
     bv: ArrayLike,
@@ -518,6 +533,7 @@ def gyro_age_mamajek2008(
     return u.Quantity(age, "Gyr")
 
 
+@cites("SuarezMascareno2015", note="Eq. 9")
 def rotation_period_suarez_mascareno2015(
     log_rhk: ArrayLike,
     sample: str = "full",
@@ -603,6 +619,7 @@ def rotation_period_suarez_mascareno2015(
 rotation_period_from_rhk_suarez_mascareno_2015 = rotation_period_suarez_mascareno2015
 
 
+@cites("SuarezMascareno2015", note="Eq. 9, all metallicity samples, sampled inline")
 def sample_rotation_period_and_age(
     log_rhk: float,
     log_rhk_err: float,
@@ -713,32 +730,48 @@ def sample_rotation_period_and_age(
 
     table = QTable(table_data, names=table_names)
 
-    table[
-        "prot_mamajek"
-    ].description = "Rotation period via Rossby number (Mamajek & Hillenbrand 2008, Eqs. 5 & 7)"  # type: ignore
-    table["prot_noyes"].description = "Rotation period via Noyes et al. (1984), Eq. 3"  # type: ignore
-    table[
-        "prot_suarez_mascareno"
-    ].description = (
-        "Rotation period via empirical relation (Suárez Mascareño et al. 2015, Eq. 9, full sample)"  # type: ignore
+    def _describe(col_name: str, description: str, *reference_keys: str) -> None:
+        table[col_name].description = description  # type: ignore[union-attr]
+        table[col_name].info.meta = {"references": list(reference_keys)}  # type: ignore[union-attr]
+
+    _describe(
+        "prot_mamajek",
+        "Rotation period via Rossby number (Mamajek & Hillenbrand 2008, Eqs. 5 & 7)",
+        "MamajekHillenbrand2008",
+    )
+    _describe("prot_noyes", "Rotation period via Noyes et al. (1984), Eq. 3", "Noyes1984")
+    _describe(
+        "prot_suarez_mascareno",
+        "Rotation period via empirical relation (Suárez Mascareño et al. 2015, Eq. 9, full sample)",
+        "SuarezMascareno2015",
     )
 
     for sample_name, params in SUAREZ_MASCARENO_2015_COEFFICIENTS.items():
         col_name = f"prot_suarez_mascareno_{sample_name}"
-        table[
-            col_name
-        ].description = (
-            f"Rotation period via Suárez Mascareño et al. (2015), Eq. 9 ({params['description']})"  # type: ignore
+        _describe(
+            col_name,
+            f"Rotation period via Suárez Mascareño et al. (2015), Eq. 9 ({params['description']})",
+            "SuarezMascareno2015",
         )
 
-    table[
-        "age_gyro_mamajek"
-    ].description = "Gyrochronological age (Mamajek & Hillenbrand 2008, Eqs. 12-14)"  # type: ignore
-    table[
-        "age_chromo_mamajek"
-    ].description = "Chromospheric age (Mamajek & Hillenbrand 2008, Eq. 3 with jitter)"  # type: ignore
-    table[
-        "age_gyro_barnes"
-    ].description = "Gyrochronological age (Barnes 2010, as cited in Mittag et al. 2018, Eq. 13)"  # type: ignore
+    _describe(
+        "age_gyro_mamajek",
+        "Gyrochronological age (Mamajek & Hillenbrand 2008, Eqs. 12-14)",
+        "MamajekHillenbrand2008",
+    )
+    _describe(
+        "age_chromo_mamajek",
+        "Chromospheric age (Mamajek & Hillenbrand 2008, Eq. 3 with jitter)",
+        "MamajekHillenbrand2008",
+    )
+    _describe(
+        "age_gyro_barnes",
+        "Gyrochronological age (Barnes 2010, as cited in Mittag et al. 2018, Eq. 13)",
+        "Barnes2010",
+        "Mittag2018",
+    )
+    _describe(
+        "tau_c_noyes", "Local convective turnover time (Noyes et al. 1984, Eq. 4)", "Noyes1984"
+    )
 
     return table

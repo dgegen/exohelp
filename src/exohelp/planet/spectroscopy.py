@@ -13,6 +13,7 @@ from astropy.units.cds import ppm  # type: ignore[import]
 import numpy as np
 from astropy.modeling.models import BlackBody
 
+from ..citations import cites
 from ..type import QuantityLike
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
 ]
 
 
+@cites("Winn2010")
 def scale_height(
     temperature: QuantityLike,
     gravity: QuantityLike,
@@ -64,6 +66,7 @@ def scale_height(
     return (const.k_B * temperature / (mean_molecular_weight * gravity)).to("km")  # type: ignore[attr-defined]
 
 
+@cites("Winn2010", "deWitSeager2013", note="Eq. 36")
 def transmission_signal_size(
     scale_height: QuantityLike,
     r_planet: QuantityLike,
@@ -142,6 +145,7 @@ def _get_scale_factor(r_planet: QuantityLike) -> np.ndarray:
     return np.select(conditions, values, default=np.nan)
 
 
+@cites("Kempton2018")
 def transmission_spectroscopy_metric(
     r_planet: QuantityLike,
     m_planet: QuantityLike,
@@ -221,6 +225,7 @@ def _planck_lambda(wavelength: u.Quantity, temperature: u.Quantity) -> u.Quantit
     )
 
 
+@cites("Kempton2018", note="day-side temperature convention T_day = 1.10 T_eq")
 def planet_star_flux_ratio(
     r_planet: QuantityLike,
     teq_planet: QuantityLike,
@@ -273,6 +278,7 @@ def planet_star_flux_ratio(
     return flux_ratio.to(ppm)
 
 
+@cites("Kempton2018")
 def emission_spectroscopy_metric(
     r_planet: QuantityLike,
     teq_planet: QuantityLike,

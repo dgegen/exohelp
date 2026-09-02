@@ -3,6 +3,7 @@ import numpy as np
 from typing import NamedTuple
 
 
+from ..citations import cites
 from ..kepler import keplers_third_law
 from ..type import QuantityLike, ArrayLike
 from ..units import S_earth
@@ -90,6 +91,7 @@ def insolation_flux(
     return s_at_a / np.sqrt(1 - eccentricity**2) * S_earth
 
 
+@cites("HamiltonBurns1992")
 def hill_sphere_radius(
     semi_major_axis: QuantityLike,
     m_planet: QuantityLike,
@@ -200,6 +202,7 @@ def equilibrium_temperature(
     return t_eq_circular
 
 
+@cites("Quirrenbach2022")
 def equilibrium_temperature_eccentric(
     teff_star: float | np.ndarray | u.Quantity,
     semi_major_axis: None | float | np.ndarray | u.Quantity = None,

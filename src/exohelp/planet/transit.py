@@ -3,6 +3,7 @@ import numpy as np
 from astropy.table import QTable
 from astropy.units.cds import ppm  # type: ignore[import]
 
+from ..citations import cites
 from ..kepler import keplers_third_law
 from ..type import QuantityLike
 
@@ -21,6 +22,7 @@ __all__ = [
 ]
 
 
+@cites("Winn2010")
 def impact_parameter(
     semi_major_axis: QuantityLike,
     r_star: QuantityLike = 1.0,
@@ -66,6 +68,7 @@ def impact_parameter(
     return (semi_major_axis / r_star).decompose().value * np.asarray(cos_inclination) * ecc_factor
 
 
+@cites("Winn2010")
 def orbital_inclination(
     semi_major_axis: QuantityLike,
     r_star: QuantityLike = 1.0,
@@ -133,6 +136,7 @@ def _chord_duration(
     return (np.arcsin(argument) / np.pi) * period.to("hour") * u.Quantity(ecc_factor)  # type: ignore[return-value]
 
 
+@cites("Winn2010")
 def transit_duration_total(
     period: QuantityLike,
     r_planet: QuantityLike = 1.0,
@@ -199,6 +203,7 @@ def transit_duration_total(
     return _chord_duration(period, k, r_star_over_a, b, eccentricity, omega_rad)
 
 
+@cites("Winn2010")
 def transit_duration_flat(
     period: QuantityLike,
     r_planet: QuantityLike = 1.0,
@@ -275,6 +280,7 @@ def transit_duration_flat(
     return np.where(grazing, 0.0, duration.to("hour").value) * u.hour  # type: ignore[return-value]
 
 
+@cites("Winn2010")
 def transit_duration_ingress(
     period: QuantityLike,
     r_planet: QuantityLike = 1.0,
@@ -332,6 +338,7 @@ def transit_duration_ingress(
     return (t_total - t_flat) / 2.0  # type: ignore[return-value]
 
 
+@cites("MandelAgol2002")
 def transit_depth(radius_ratio: float | np.ndarray, b: float | np.ndarray = 0.0) -> u.Quantity:
     """Compute the transit depth (fractional flux loss) as a function of impact parameter.
 
@@ -389,6 +396,7 @@ def transit_depth(radius_ratio: float | np.ndarray, b: float | np.ndarray = 0.0)
     return depth
 
 
+@cites("Winn2010")
 def geometric_transit_probability(
     period: QuantityLike,
     r_star: QuantityLike = 1.0,
@@ -444,6 +452,7 @@ def geometric_transit_probability(
     return (r_star.to("AU") / a).decompose().value * ecc_factor
 
 
+@cites("Winn2010")
 def geometric_occultation_probability(
     period: QuantityLike,
     r_star: QuantityLike = 1.0,
@@ -506,6 +515,7 @@ def geometric_occultation_probability(
     return (r_star.to("AU") / a).decompose().value * ecc_factor
 
 
+@cites("Winn2010")
 def a_over_r_star(
     period: QuantityLike,
     r_star: QuantityLike = 1.0,
@@ -549,6 +559,7 @@ def a_over_r_star(
     return (a / r_star.to("AU")).decompose().value
 
 
+@cites("Winn2010")
 def secondary_eclipse_timing_offset(
     period: QuantityLike,
     eccentricity: float | np.ndarray,
@@ -601,6 +612,7 @@ def secondary_eclipse_timing_offset(
     )
 
 
+@cites("Winn2010", "MandelAgol2002")
 def transit_quantities(
     period: QuantityLike,
     r_planet: QuantityLike = 1.0,
@@ -727,11 +739,27 @@ def transit_quantities(
         "Occultation probability",
         "Eclipse timing offset",
     ]
+    reference_keys = [
+        [],
+        [],
+        ["Winn2010"],
+        ["Winn2010"],
+        ["MandelAgol2002"],
+        ["Winn2010"],
+        ["Winn2010"],
+        ["Winn2010"],
+        ["Winn2010"],
+        ["Winn2010"],
+        ["Winn2010"],
+    ]
 
     table = QTable(cols, names=names)
-    for name, desc, short_desc in zip(names, descriptions, short_descriptions):
+    for name, desc, short_desc, refs in zip(
+        names, descriptions, short_descriptions, reference_keys
+    ):
         table[name].info.description = desc  # type: ignore[union-attr]
         if table[name].info.meta is None:  # type: ignore[union-attr]
             table[name].info.meta = {}  # type: ignore[union-attr]
         table[name].info.meta["short_description"] = short_desc  # type: ignore[union-attr]
+        table[name].info.meta["references"] = refs  # type: ignore[union-attr]
     return table

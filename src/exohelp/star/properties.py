@@ -2,11 +2,13 @@ import astropy.constants as const
 import astropy.units as u
 import numpy as np
 
+from ..citations import cites
 from ..type import QuantityLike
 
 __all__ = ["kennedy_kenyon_snowline", "luminosity"]
 
 
+@cites("KennedyKenyon2008")
 def kennedy_kenyon_snowline(m_star: QuantityLike, x: float = 2.0) -> u.Quantity:
     """Calculates the snow line distance based on Kennedy & Kenyon (2008).
 

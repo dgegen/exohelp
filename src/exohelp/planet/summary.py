@@ -1,4 +1,5 @@
 import re
+from collections.abc import Sequence
 
 import astropy.constants as const
 import astropy.units as u
@@ -197,13 +198,24 @@ def derived_planet_quantities(
         new_names = [_column_with_planet_index(name, planet_index) for name in old_names]
         table.rename_columns(old_names, new_names)
 
-    def _add(name: str, value, description: str, **kwargs) -> None:
+    def _add(
+        name: str,
+        value,
+        description: str,
+        *,
+        short_description: str | None = None,
+        references: Sequence[str] = (),
+        **extra_meta,
+    ) -> None:
         column_name = _column_with_planet_index(name, planet_index)
         table[column_name] = np.atleast_1d(value)
         table[column_name].info.description = description  # type: ignore[union-attr]
         if table[column_name].info.meta is None:  # type: ignore[union-attr]
             table[column_name].info.meta = {}  # type: ignore[union-attr]
-        table[column_name].info.meta.update(kwargs)  # type: ignore[union-attr]
+        if short_description is not None:
+            extra_meta["short_description"] = short_description
+        extra_meta["references"] = list(references)
+        table[column_name].info.meta.update(extra_meta)  # type: ignore[union-attr]
 
     # --- insolation flux and equilibrium temperature ---
     _lum = None
@@ -250,18 +262,21 @@ def derived_planet_quantities(
                 eccentric_teqs.apastron.to("K"),
                 "Equilibrium temperature at apastron",
                 short_description="Equilibrium temperature at apastron",
+                references=["Quirrenbach2022"],
             )
             _add(
                 "teq_periastron",
                 eccentric_teqs.periastron.to("K"),
                 "Equilibrium temperature at periastron",
                 short_description="Equilibrium temperature at periastron",
+                references=["Quirrenbach2022"],
             )
             _add(
                 "teq_flux_averaged",
                 eccentric_teqs.flux_averaged.to("K"),
                 "Flux-averaged equilibrium temperature",
                 short_description="Flux-averaged equilibrium temperature",
+                references=["Quirrenbach2022"],
             )
 
     if np.any(eccentricity > 0):
@@ -292,7 +307,7 @@ def derived_planet_quantities(
             _m_planet.to("M_earth"),
             "Planet mass from RV semi-amplitude (Lovis & Fischer 2010)",
             short_description="Planet mass",
-            abs="https://ui.adsabs.harvard.edu/abs/2010exop.book...27L/abstract",
+            references=["LovisFischer2010"],
         )
     elif m_planet is not None:
         _m_planet = u.Quantity(m_planet, "M_earth")
@@ -303,7 +318,7 @@ def derived_planet_quantities(
             _K.to("m/s"),
             "Predicted RV semi-amplitude (Lovis & Fischer 2010)",
             short_description="Predicted RV semi-amplitude",
-            abs="https://ui.adsabs.harvard.edu/abs/2010exop.book...27L/abstract",
+            references=["LovisFischer2010"],
         )
 
     if _m_planet is not None:
@@ -331,7 +346,7 @@ def derived_planet_quantities(
             hill_sphere_radius(a, _m_planet, m_star, eccentricity).to("AU"),
             "Hill sphere radius r_H = a(1-e)(m_p/3M★)^(1/3) (Hamilton & Burns 1992)",
             short_description="Hill sphere radius",
-            doi="https://doi.org/10.1016/0019-1035(92)90005-R",
+            references=["HamiltonBurns1992"],
         )
 
         if _teq is not None:
@@ -341,7 +356,7 @@ def derived_planet_quantities(
                 _H,
                 "Atmospheric scale height H = k_B T_eq / (μ m_H g), μ=2.3",
                 short_description="Scale height",
-                abs="https://ui.adsabs.harvard.edu/abs/2010exop.book...55W/abstract",
+                references=["Winn2010"],
             )
             _sig = transmission_signal_size(_H, r_planet, r_star)
             _add(
@@ -349,7 +364,7 @@ def derived_planet_quantities(
                 _sig,
                 "Single-scale-height transmission signal ΔD = 2H R_p / R★² (ppm)",
                 short_description="Transmission signal (1H)",
-                abs="https://doi.org/10.1126/science.1245450",
+                references=["Winn2010", "deWitSeager2013"],
             )
 
             _fp_fs = planet_star_flux_ratio(
@@ -361,7 +376,7 @@ def derived_planet_quantities(
                 "Planet/star thermal flux ratio at 7.5 µm using blackbody approximation",
                 short_description="Planet/star mid-IR flux ratio",
                 wavelength="7.5 um",
-                abs="https://ui.adsabs.harvard.edu/abs/2018PASP..130k4401K/abstract",
+                references=["Kempton2018"],
             )
 
             if j_mag is not None:
@@ -372,7 +387,7 @@ def derived_planet_quantities(
                     np.asarray(_tsm),
                     "Transmission Spectroscopy Metric (Kempton et al. 2018)",
                     short_description="Transmission Spectroscopy Metric",
-                    doi="https://doi.org/10.1088/1538-3873/aadf6f",
+                    references=["Kempton2018"],
                 )
 
             if k_mag is not None:
@@ -383,7 +398,7 @@ def derived_planet_quantities(
                     np.asarray(_esm),
                     "Emission Spectroscopy Metric at 7.5 µm (Kempton et al. 2018)",
                     short_description="Emission Spectroscopy Metric",
-                    abs="https://ui.adsabs.harvard.edu/abs/2018PASP..130k4401K/abstract",
+                    references=["Kempton2018"],
                 )
 
     if table.meta is None:

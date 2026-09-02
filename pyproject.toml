@@ -33,6 +33,7 @@ classifiers = [
 dependencies = [
   "astropy>=7.2.0",
   "numpy>=2.0.0",
+  "pandas>=2.0",
   "scipy>=1.17.1"
 ]
 description = "A collection of tools for exoplanetary and stellar astrophysics."

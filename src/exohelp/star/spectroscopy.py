@@ -17,6 +17,7 @@ import astropy.units as u
 from astropy.coordinates import LSR, SkyCoord
 from astropy.table import QTable
 
+from ..citations import cites
 from ..stats import truncated_normal
 from ..type import QuantityLike
 
@@ -31,6 +32,8 @@ __all__ = [
 ]
 
 
+# Kinematic velocity ellipsoids and population fractions for the thin disk, thick
+# disk, halo, and Hercules stream; see citations.REFERENCES["Bensby2014"].
 BENSBY_POPULATION_PARAMETERS = {
     "Thin Disk": {
         "sigma_U": 35.0,
@@ -67,6 +70,7 @@ BENSBY_POPULATION_PARAMETERS = {
 }
 
 
+@cites("Bruntt2010", note="Eq. 10")
 def microturbulent_velocity_bruntt2010(teff: QuantityLike) -> u.Quantity:
     """
     Micro-turbulent velocity from effective temperature.
@@ -97,6 +101,7 @@ def microturbulent_velocity_bruntt2010(teff: QuantityLike) -> u.Quantity:
     return u.Quantity(v_mic, "km / s")
 
 
+@cites("Bruntt2010", note="Eq. 9")
 def macroturbulent_velocity_bruntt2010(teff: QuantityLike) -> u.Quantity:
     """
     Macro-turbulent velocity from effective temperature.
@@ -125,6 +130,7 @@ def macroturbulent_velocity_bruntt2010(teff: QuantityLike) -> u.Quantity:
     return u.Quantity(v_mac, "km / s")
 
 
+@cites("Doyle2014", note="Eq. 8")
 def macroturbulent_velocity_doyle2014(teff: QuantityLike, logg: QuantityLike) -> u.Quantity:
     """
     Macro-turbulent velocity from effective temperature and surface gravity.
@@ -254,8 +260,11 @@ def sample_v_mic_and_v_mac(
         names=["teff", "logg", "v_mic", "v_mac_bruntt", "v_mac_doyle"],
     )
     table["v_mic"].description = "Micro-turbulent velocity (Bruntt et al. 2010, Eq. 10)"  # type: ignore
+    table["v_mic"].info.meta = {"references": ["Bruntt2010"]}  # type: ignore[union-attr]
     table["v_mac_bruntt"].description = "Macro-turbulent velocity (Bruntt et al. 2010, Eq. 9)"  # type: ignore
+    table["v_mac_bruntt"].info.meta = {"references": ["Bruntt2010"]}  # type: ignore[union-attr]
     table["v_mac_doyle"].description = "Macro-turbulent velocity (Doyle et al. 2014, Eq. 8)"  # type: ignore
+    table["v_mac_doyle"].info.meta = {"references": ["Doyle2014"]}  # type: ignore[union-attr]
 
     return table
 
@@ -447,6 +456,7 @@ def sample_uvw_lsr(
     return table
 
 
+@cites("Bensby2014")
 def bensby_membership_probabilities(
     u_lsr: QuantityLike,
     v_lsr: QuantityLike,
@@ -500,7 +510,7 @@ def bensby_membership_probabilities(
 
     td_to_d = probabilities["Thick Disk"] / probabilities["Thin Disk"]
 
-    return QTable(
+    table = QTable(
         [
             probabilities["Thin Disk"],
             probabilities["Thick Disk"],
@@ -510,6 +520,8 @@ def bensby_membership_probabilities(
         ],
         names=["Thin Disk", "Thick Disk", "Halo", "Hercules", "TD_to_D"],
     )
+    table.meta = {"references": ["Bensby2014"]}
+    return table
 
 
 def classify_td_to_d_ratio(
@@ -543,6 +555,7 @@ def classify_td_to_d_ratio(
     return classifications
 
 
+@cites("Santerne2015", note="Table 1 scaling coefficients")
 def ccf_indicator_uncertainties(rv_error: QuantityLike, instrument: str = "HARPS") -> dict:
     """
     Computes photon-noise uncertainties for FWHM, BIS, and Contrast.
@@ -565,7 +578,8 @@ def ccf_indicator_uncertainties(rv_error: QuantityLike, instrument: str = "HARPS
             'sigma_contrast_err': Quantity,  # Uncertainty in Contrast (%)
         }
     """
-    # Scaling coefficients (epsilon_k) from Table 1 of Santerne et al. (2015)
+    # Scaling coefficients (epsilon_k) from Table 1 of Santerne et al. (2015); see
+    # citations.REFERENCES["Santerne2015"].
     # These coefficients assume sigma_RV is in km/s to yield results in m/s or %.
     # Since input is in m/s, we adjust the math accordingly.
     # The source defines epsilon_contrast relative to RV in km/s.

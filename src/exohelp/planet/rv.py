@@ -2,6 +2,7 @@ import numpy as np
 from astropy import constants as const
 from astropy import units as u
 
+from ..citations import cites
 from ..type import QuantityLike
 
 __all__ = ["planet_mass_from_rv", "rv_semi_amplitude"]
@@ -9,6 +10,7 @@ __all__ = ["planet_mass_from_rv", "rv_semi_amplitude"]
 _PRE_FACTOR = ((2 * np.pi * const.G) ** (-1 / 3)).to("day(2/3) M_sun(1/3) / R_sun")  # type: ignore[attr-defined]
 
 
+@cites("LovisFischer2010")
 def planet_mass_from_rv(
     rv_semi_amplitude: QuantityLike,
     period: QuantityLike,
@@ -99,6 +101,7 @@ def planet_mass_from_rv(
     return m_planet.to("M_earth")
 
 
+@cites("LovisFischer2010")
 def rv_semi_amplitude(
     m_planet: QuantityLike,
     period: QuantityLike,

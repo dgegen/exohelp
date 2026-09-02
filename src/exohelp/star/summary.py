@@ -89,8 +89,11 @@ def derive_stellar_parameters(
     )
 
     table["v_mic"].description = "Micro-turbulent velocity (Bruntt et al. 2010, Eq. 10)"  # type: ignore
+    table["v_mic"].info.meta = {"references": ["Bruntt2010"]}  # type: ignore[union-attr]
     table["v_mac_bruntt"].description = "Macro-turbulent velocity (Bruntt et al. 2010, Eq. 9)"  # type: ignore
+    table["v_mac_bruntt"].info.meta = {"references": ["Bruntt2010"]}  # type: ignore[union-attr]
     table["v_mac_doyle"].description = "Macro-turbulent velocity (Doyle et al. 2014, Eq. 8)"  # type: ignore
+    table["v_mac_doyle"].info.meta = {"references": ["Doyle2014"]}  # type: ignore[union-attr]
     table["rotation_period"].description = (  # type: ignore
         "Rotation period from vsini and stellar radius"
     )

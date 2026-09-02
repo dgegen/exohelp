@@ -5,18 +5,26 @@ import astropy.units as u
 import numpy as np
 import pandas as pd
 
+from ..citations import REFERENCES
+from ..citations import resolve as _resolve_reference
 from .numbers import format_number, format_value_with_uncertainty
 
+# Pre-rendered `\tablebib` entries for the standard catalog references, built from the
+# shared registry in exohelp.citations so the keys here can never drift out of sync
+# with references.bib.
 DEFAULT_TABLEBIB: dict[str, str] = {
-    "Gaia DR3": r"\textit{Gaia} DR3: \citet{GaiaCollaboration2023}",
-    r"\textit{Gaia} DR3": r"\textit{Gaia} DR3: \citet{GaiaCollaboration2023}",
-    "Lin21": r"Lin21: \citet{lindegren2021}",
-    "Tycho-2": r"Tycho-2: \citet{Hoeg2000}",
-    "TIC": r"TIC: \citet{Stassun2019}",
-    "2MASS": r"2MASS: \citet{Skrutskie2006}",
-    "ALLWISE": r"ALLWISE: \citet{Wright2010}",
+    "Gaia DR3": rf"\textit{{Gaia}} DR3: {REFERENCES['GaiaCollaboration2023'].citet()}",
+    r"\textit{Gaia} DR3": rf"\textit{{Gaia}} DR3: {REFERENCES['GaiaCollaboration2023'].citet()}",
+    "Lin21": rf"Lin21: {REFERENCES['lindegren2021'].citet()}",
+    "Tycho-2": rf"Tycho-2: {REFERENCES['Hoeg2000'].citet()}",
+    "TIC": rf"TIC: {REFERENCES['Stassun2019'].citet()}",
+    "2MASS": rf"2MASS: {REFERENCES['Skrutskie2006'].citet()}",
+    "ALLWISE": rf"ALLWISE: {REFERENCES['Wright2010'].citet()}",
 }
 
+# Purely presentational relabeling for the `source` column itself (reference_style=
+# "survey"/"author"); unrelated to bibliography resolution, which goes through
+# exohelp.citations.resolve() below.
 AUTHOR_TO_SURVEY: dict[str, str] = {
     "Skr06": "2MASS",
     "Cut13": "ALLWISE",
@@ -47,7 +55,16 @@ def _resolve_bib_entry(
     bib_map: dict[str, str],
     normalized_bib_map: dict[str, str],
 ) -> str | None:
-    """Resolve a source token to a bibliography citation entry without false substring matches."""
+    """Resolve a source token to a bibliography citation entry without false substring matches.
+
+    Checks `bib_map` (``DEFAULT_TABLEBIB`` plus any ``custom_references``/
+    ``tablebib_mapping`` overrides) first, so callers can still hand-pick the exact
+    rendered LaTeX for a token; falls back to the shared `exohelp.citations` registry
+    (canonical keys, bibcodes, and survey/author aliases) for anything not explicitly
+    mapped. A token that is a registry alias for the same paper as a `bib_map` entry
+    (e.g. "Skr06" aliasing "2MASS") still gets that entry's pre-rendered LaTeX, not a
+    bare ``\\citet{}``.
+    """
     if not src_token or src_token.lower() in ("this work", "nan", "none", "--"):
         return None
     if r"\ref" in src_token or r"\cite" in src_token:
@@ -57,26 +74,21 @@ def _resolve_bib_entry(
     if src_token in bib_map:
         return bib_map[src_token]
 
-    # 2. Check mapped author/survey aliases
-    mapped_survey = AUTHOR_TO_SURVEY.get(src_token)
-    if mapped_survey and mapped_survey in bib_map:
-        return bib_map[mapped_survey]
-
-    mapped_author = SURVEY_TO_AUTHOR.get(src_token)
-    if mapped_author and mapped_author in bib_map:
-        return bib_map[mapped_author]
-
-    # 3. Exact match against normalized keys
+    # 2. Normalized match against bib_map (handles \textit{Gaia} DR3 vs. Gaia DR3, etc.)
     norm_src = _normalize_bib_key(src_token)
     if norm_src in normalized_bib_map:
         return normalized_bib_map[norm_src]
 
-    if mapped_survey:
-        norm_survey = _normalize_bib_key(mapped_survey)
-        if norm_survey in normalized_bib_map:
-            return normalized_bib_map[norm_survey]
-
-    return None
+    # 3. Resolve via the shared citation registry, preferring a bib_map entry that
+    # resolves to the same reference (so survey/author aliases keep their prefix).
+    ref = _resolve_reference(src_token)
+    if ref is None:
+        return None
+    for key, entry in bib_map.items():
+        mapped_ref = _resolve_reference(key)
+        if mapped_ref is not None and mapped_ref.key == ref.key:
+            return entry
+    return ref.citet()
 
 
 def format_unit_aa(unit_raw: str) -> str:

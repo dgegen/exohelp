@@ -347,6 +347,7 @@ source = { editable = "." }
 dependencies = [
     { name = "astropy" },
     { name = "numpy" },
+    { name = "pandas" },
     { name = "scipy" },
 ]
 
@@ -379,6 +380,7 @@ test = [
 requires-dist = [
     { name = "astropy", specifier = ">=7.2.0" },
     { name = "numpy", specifier = ">=2.0.0" },
+    { name = "pandas", specifier = ">=2.0" },
     { name = "scipy", specifier = ">=1.17.1" },
 ]
 
