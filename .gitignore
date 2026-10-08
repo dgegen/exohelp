@@ -234,3 +234,9 @@ Icon
 
 # Thumbnails
 ._*
+
+# Local working files (analysis scripts, papers, scratch outputs)
+scripts/
+sources/
+backup/
+granulation_fap.*

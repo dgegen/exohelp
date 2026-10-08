@@ -122,6 +122,18 @@ REFERENCES: dict[str, Reference] = {
     for r in [
         # --- catalogs / surveys ---
         _ref(
+            "GaiaCollaboration2016",
+            "Gaia Collaboration et al. (2016)",
+            bibcode="2016A&A...595A...1G",
+            doi="10.1051/0004-6361/201629272",
+        ),
+        _ref(
+            "Perryman2014",
+            "Perryman et al. (2014)",
+            bibcode="2014ApJ...797...14P",
+            doi="10.1088/0004-637X/797/1/14",
+        ),
+        _ref(
             "GaiaCollaboration2023",
             "Gaia Collaboration et al. (2023)",
             bibcode="2023A&A...674A...1G",
@@ -132,6 +144,41 @@ REFERENCES: dict[str, Reference] = {
             "Gaia Collaboration et al. (2021)",
             bibcode="2021A&A...649A...9G",
             doi="10.1051/0004-6361/202039734",
+        ),
+        _ref(
+            "Fabricius2021_edr3_val",
+            "Fabricius et al. (2021)",
+            bibcode="2021A&A...649A...5F",
+            doi="10.1051/0004-6361/202039834",
+        ),
+        _ref(
+            "Lindegren2021_edr3_astro",
+            "Lindegren et al. (2021)",
+            bibcode="2021A&A...649A...2L",
+            doi="10.1051/0004-6361/202039709",
+        ),
+        _ref(
+            "ElBadry2021_binaries",
+            "El-Badry et al. (2021)",
+            bibcode="2021MNRAS.506.2269E",
+            doi="10.1093/mnras/stab323",
+        ),
+        _ref(
+            "Ranalli2018",
+            "Ranalli, Hobbs & Lindegren (2018)",
+            bibcode="2018A&A...614A..30R",
+            doi="10.1051/0004-6361/201730921",
+        ),
+        _ref(
+            "Perryman1997",
+            "Perryman et al. (1997)",
+            bibcode="1997A&A...323L..49P",
+        ),
+        _ref(
+            "Brandt2021",
+            "Brandt (2021)",
+            bibcode="2021ApJS..254...42B",
+            doi="10.3847/1538-4365/abf93c",
         ),
         _ref("Hoeg2000", "H\u00f8g et al. (2000)", bibcode="2000A&A...355L..27H"),
         _ref(
@@ -356,6 +403,25 @@ REFERENCES: dict[str, Reference] = {
             bibcode="2009ApJ...698.1357J",
             doi="10.1088/0004-637X/698/2/1357",
         ),
+        # --- limb darkening (star/limb_darkening.py) ---
+        _ref(
+            "Claret2017",
+            "Claret (2017)",
+            bibcode="2017A&A...600A..30C",
+            doi="10.1051/0004-6361/201629705",
+        ),
+        _ref(
+            "Claret2021",
+            "Claret (2021)",
+            bibcode="2021RNAAS...5...13C",
+            doi="10.3847/2515-5172/abdcb3",
+        ),
+        _ref(
+            "Kipping2013",
+            "Kipping (2013)",
+            bibcode="2013MNRAS.435.2152K",
+            doi="10.1093/mnras/stt1435",
+        ),
     ]
 }
 
@@ -379,6 +445,10 @@ _EXTRA_ALIASES: dict[str, str] = {
     r"\textit{Gaia} DR3": "GaiaCollaboration2023",
     "Gai23": "GaiaCollaboration2023",
     "Lin21": "lindegren2021",
+    "Hipparcos": "Perryman1997",
+    "Per97": "Perryman1997",
+    "HGCA": "Brandt2021",
+    "Bra21": "Brandt2021",
 }
 
 

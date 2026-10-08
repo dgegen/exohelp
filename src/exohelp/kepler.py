@@ -4,7 +4,70 @@ from astropy import units as u
 
 from .type import QuantityLike
 
-__all__ = ["keplers_third_law"]
+__all__ = ["keplers_third_law", "solve_kepler"]
+
+
+def solve_kepler(
+    mean_anomaly: QuantityLike,
+    eccentricity: QuantityLike = 0.0,
+    tol: float = 1e-10,
+    max_iter: int = 20,
+) -> np.ndarray | u.Quantity | float:
+    """Solve Kepler's equation M = E - e * sin(E) for the eccentric anomaly E.
+
+    Uses Halley's method (third-order Householder method) for fast and robust
+    convergence across all eccentricities 0 <= e < 1.
+
+    Parameters
+    ----------
+    mean_anomaly : QuantityLike
+        Mean anomaly M. If given without units, assumed to be in radians.
+    eccentricity : QuantityLike, optional
+        Orbital eccentricity (0 <= e < 1). Default is 0.0.
+    tol : float, optional
+        Absolute tolerance on the change in E. Default is 1e-10.
+    max_iter : int, optional
+        Maximum number of iterations. Default is 20.
+
+    Returns
+    -------
+    E : np.ndarray, Quantity, or float
+        Eccentric anomaly in radians (matching input Quantity type if unit was provided).
+
+    Examples
+    --------
+    >>> from exohelp.kepler import solve_kepler
+    >>> round(solve_kepler(0.5, 0.1), 5)
+    0.55248
+    """
+    is_quantity = isinstance(mean_anomaly, u.Quantity)
+    m_val = mean_anomaly.to_value(u.rad) if is_quantity else np.asarray(mean_anomaly, dtype=float)
+
+    if isinstance(eccentricity, u.Quantity):
+        e_val = eccentricity.to_value(u.dimensionless_unscaled)
+    else:
+        e_val = np.asarray(eccentricity, dtype=float)
+
+    # Initial guess
+    e_val = np.asarray(e_val)
+    m_val = np.asarray(m_val)
+    ecc_anom = m_val + e_val * np.sin(m_val) / (1.0 - np.sin(m_val + e_val) + np.sin(m_val) + 1e-12)
+
+    for _ in range(max_iter):
+        f = ecc_anom - e_val * np.sin(ecc_anom) - m_val
+        f_prime = 1.0 - e_val * np.cos(ecc_anom)
+        f_double_prime = e_val * np.sin(ecc_anom)
+        delta1 = f / f_prime
+        delta = f / (f_prime - 0.5 * delta1 * f_double_prime)
+        ecc_anom = ecc_anom - delta
+        if np.all(np.abs(delta) < tol):
+            break
+
+    # Format return matching scalar vs array vs Quantity
+    if m_val.ndim == 0 and e_val.ndim == 0:
+        res = float(ecc_anom)
+        return u.Quantity(res, "rad") if is_quantity else res
+    return u.Quantity(ecc_anom, "rad") if is_quantity else ecc_anom
 
 
 def keplers_third_law(

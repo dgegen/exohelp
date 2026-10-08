@@ -12,7 +12,7 @@ from .citations import (
     citet,
     resolve,
 )
-from .kepler import keplers_third_law
+from .kepler import keplers_third_law, solve_kepler
 from .stats import truncated_normal
 
 __all__ = [
@@ -32,6 +32,7 @@ __all__ = [
     "log_surface_gravity",
     "planet",
     "resolve",
+    "solve_kepler",
     "star",
     "surface_gravity",
     "truncated_normal",
