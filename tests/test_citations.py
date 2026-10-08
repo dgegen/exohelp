@@ -50,6 +50,7 @@ def test_every_reference_bibtex_entry_is_retrievable():
 
 
 def test_decorated_leaf_functions_have_resolvable_references():
+    import exohelp.planet.astrometry as astrometry
     import exohelp.planet.escape as escape
     import exohelp.planet.properties as properties
     import exohelp.planet.rv as rv
@@ -57,10 +58,12 @@ def test_decorated_leaf_functions_have_resolvable_references():
     import exohelp.planet.tides as tides
     import exohelp.planet.transit as transit
     import exohelp.star.activity as activity
+    import exohelp.star.limb_darkening as limb_darkening
     import exohelp.star.properties as star_properties
     import exohelp.star.spectroscopy as star_spectroscopy
 
     modules = [
+        astrometry,
         escape,
         properties,
         rv,
@@ -68,6 +71,7 @@ def test_decorated_leaf_functions_have_resolvable_references():
         tides,
         transit,
         activity,
+        limb_darkening,
         star_properties,
         star_spectroscopy,
     ]
